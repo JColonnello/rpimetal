@@ -46,32 +46,29 @@ void show_invalid_entry_message(int type, unsigned long esr, unsigned long addre
 	printf("%s, ESR: %x, address: %x\r\n", entry_error_messages[type], esr, address);
 }
 
-static void handle_gpu_irq()
+void handle_gpu_irq(unsigned irq)
 {
-	switch (get32(IRQ_BASIC_PENDING))
-	{
-		case 1<<10 ... (1<<21-1):
-			handle_uart0;
-			break;
-		case 1<<1:
-			mbox_read();
-			break;
-		default:
-			break;
-	}
+	unsigned handled = 0;
+
+	if(handled |= irq & 1<<19)
+		handle_uart0();
+	if(handled |= irq & 1<<1)
+		mbox_read();
+
+	if(irq ^ handled)
+		printf("Unknown pending GPU irq: %x\r\n", irq ^ handled);
 }
 
 void handle_irq(void)
 {
 	unsigned int irq = get32(CORE0_INT_SOURCE);
-	switch (irq) {
-		case (0x800):
-			handle_timer_irq();
-			break;
-		case (0x100):
-			handle_gpu_irq();
-			break;
-		default:
-			printf("Unknown pending irq: %x\r\n", irq);
-	}
+	unsigned handled = 0;
+
+	if(handled |= irq & 0x800)
+		handle_timer_irq();
+	if(handled |= irq & 0x100)
+		handle_gpu_irq(get32(IRQ_BASIC_PENDING));
+		
+	if(irq ^ handled)
+		printf("Unknown pending irq: %x\r\n", irq);
 }
