@@ -4,6 +4,7 @@
 #include "peripherals/irq.h"
 #include "peripherals/timer.h"
 #include "peripherals/uart.h"
+#include "mbox.h"
 #include <stdint.h>
 
 const char *entry_error_messages[] = {
@@ -32,13 +33,32 @@ void enable_interrupt_controller()
 {
 	// Enable IRQ Core 0 - Pag. 13 BCM2836_ARM-local_peripherals
 	// put32(CORE0_INT_CTR, (1 << 1));
+	// Enable UART interrupt
 	put32(ENABLE_IRQS_2, 1<<25);
+	put32(ENABLE_BASIC_IRQS, (1<<1 | 1<<2 | 1<<3));
+	put32(CORE0_INT_SOURCE, 1<<8);
+	mbox_irq();
 	// printf("IRQS: %x\n", *(uint32_t*)ENABLE_IRQS_2);
 }
 
 void show_invalid_entry_message(int type, unsigned long esr, unsigned long address)
 {
 	printf("%s, ESR: %x, address: %x\r\n", entry_error_messages[type], esr, address);
+}
+
+static void handle_gpu_irq()
+{
+	switch (get32(IRQ_BASIC_PENDING))
+	{
+		case 1<<10 ... (1<<21-1):
+			handle_uart0;
+			break;
+		case 1<<1:
+			mbox_read();
+			break;
+		default:
+			break;
+	}
 }
 
 void handle_irq(void)
@@ -49,7 +69,7 @@ void handle_irq(void)
 			handle_timer_irq();
 			break;
 		case (0x100):
-			handle_uart0();
+			handle_gpu_irq();
 			break;
 		default:
 			printf("Unknown pending irq: %x\r\n", irq);
