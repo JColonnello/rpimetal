@@ -28,9 +28,12 @@ $(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES)
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -nographic -d int
 
+debug: all
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -nographic -d int -S -s
+
 uart0:
 	nc -lkvp 4444
 
 -include $(OBJ_FILES:%.o=%.d)
 
-.PHONY: all run uart0
+.PHONY: all run uart0 debug
