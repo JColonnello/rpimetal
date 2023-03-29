@@ -12,9 +12,16 @@ _start:
 	b	proc_hang
 
 proc_hang: 
+	wfi
 	b 	proc_hang
 
 master:
+	adr x0, proc_hang
+	mov x1, #0xe0
+	str x0, [x1], #8
+	str x0, [x1], #8
+	str x0, [x1]
+
 	ldr	x0, =SCTLR_VALUE_MMU_DISABLED
 	msr	sctlr_el1, x0		
 

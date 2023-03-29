@@ -19,7 +19,5 @@ void kernel_main(void)
     // unsigned int r=*((volatile unsigned int*)0xFFFFFFFFFF000000);
 	// r++;
 
-	while (1){
-		// uart_send(uart_recv());
-	}	
+	return;
 }
