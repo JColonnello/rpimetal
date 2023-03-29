@@ -19,6 +19,6 @@ void timer_reload()
 
 void handle_timer_irq( void ) 
 {
-	printf("Timer interrupt received, Local timer\n\r");
+	printf("Timer interrupt received, Local timer\n");
 	timer_reload();
 }

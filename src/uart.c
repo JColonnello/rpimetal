@@ -173,12 +173,9 @@ void handle_uart0( void )
  */
 char uart_recv() {
     char r;
-    /* wait until something is in the buffer */
-    // do{asm volatile("nop");}while(*UART0_FR&0x10);
     /* read it and return */
     r=(char)(*UART0_DR);
-    /* convert carrige return to newline */
-    return r=='\r'?'\n':r;
+    return r;
 }
 
 /**
@@ -186,9 +183,6 @@ char uart_recv() {
  */
 void uart_send_string(char *s) {
     while(*s) {
-        /* convert newline to carrige return + newline */
-        if(*s=='\n')
-            uart_send('\r');
         uart_send(*s++);
     }
 }
