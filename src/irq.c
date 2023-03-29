@@ -35,9 +35,9 @@ void enable_interrupt_controller()
 	// put32(CORE0_INT_CTR, (1 << 1));
 	// Enable UART interrupt
 	put32(ENABLE_IRQS_2, 1<<25);
-	put32(ENABLE_BASIC_IRQS, (1<<1 | 1<<2 | 1<<3));
-	put32(CORE0_INT_SOURCE, 1<<8);
-	mbox_irq();
+	// Enable mailbox interrupt
+	put32(ENABLE_BASIC_IRQS, 1<<1);
+	mbox_irq_init();
 	// printf("IRQS: %x\n", *(uint32_t*)ENABLE_IRQS_2);
 }
 
@@ -48,27 +48,34 @@ void show_invalid_entry_message(int type, unsigned long esr, unsigned long addre
 
 void handle_gpu_irq(unsigned irq)
 {
-	unsigned handled = 0;
-
-	if(handled |= irq & 1<<19)
-		handle_uart0();
-	if(handled |= irq & 1<<1)
-		mbox_read();
-
-	if(irq ^ handled)
-		printf("Unknown pending GPU irq: %x\r\n", irq ^ handled);
+	// printf("IRQ: %x\n", irq);
+	for(unsigned handled = 1; handled; irq &= ~handled)
+	{
+		handled = 0;
+		if(handled = irq & 1<<19)
+			handle_uart0();
+		else if(handled = irq & 1<<1)
+			mbox_read();
+		else if(handled = irq & 1<<9)
+			continue;
+			// printf("GPU 2: %x\n", get32(IRQ_PENDING_2));
+	}
+	if(irq)
+		printf("Unknown pending GPU irq: %x\n", irq);
 }
 
 void handle_irq(void)
 {
 	unsigned int irq = get32(CORE0_INT_SOURCE);
-	unsigned handled = 0;
 
-	if(handled |= irq & 0x800)
-		handle_timer_irq();
-	if(handled |= irq & 0x100)
-		handle_gpu_irq(get32(IRQ_BASIC_PENDING));
-		
-	if(irq ^ handled)
-		printf("Unknown pending irq: %x\r\n", irq);
+	for(unsigned handled = 1; handled; irq &= ~handled)
+	{
+		handled = 0;
+		if(handled = irq & 1<<11)
+			handle_timer_irq();
+		else if(handled = irq & 1<<8)
+			handle_gpu_irq(get32(IRQ_BASIC_PENDING));
+	}
+	if(irq)
+		printf("Unknown pending irq: %x\n", irq);
 }

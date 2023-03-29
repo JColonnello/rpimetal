@@ -40,7 +40,7 @@ volatile unsigned int  __attribute__((aligned(16))) mbox[36];
 #define MBOX_FULL       0x80000000
 #define MBOX_EMPTY      0x40000000
 
-void mbox_irq()
+void mbox_irq_init()
 {
     *MBOX_CONFIG = 1;
 }
