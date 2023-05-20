@@ -1,4 +1,5 @@
-ARMGNU ?= aarch64-none-elf
+TOOLCHAIN ?= /opt/aarch64-none-elf/bin
+ARMGNU ?= $(TOOLCHAIN)/aarch64-none-elf
 CC=$(ARMGNU)-gcc
 LD=$(ARMGNU)-ld
 AS=$(ARMGNU)-gcc
