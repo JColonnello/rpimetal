@@ -1,14 +1,15 @@
-ENTRY(_start)
+ENTRY(boot)
 
 SECTIONS
 {
     . = 0x80000;
+	__stack = .;
 	.text.boot : { *(.text.boot) }
 	.text : { *(.text) }
 	.rodata : { *(.rodata) }
 	.data : { *(.data) }
 	. = ALIGN(0x8);
-	bss_begin = .;
+	__bss_start__ = .;
 	.bss : { *(.bss*) } 
-	bss_end = .;
+	__bss_end__ = .;
 }

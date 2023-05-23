@@ -39,4 +39,11 @@
 #define SPSR_EL1h			(5 << 0)
 #define SPSR_VALUE			(SPSR_MASK_ALL | SPSR_EL1h)
 
+// ***************************************
+// CPACR_EL1, Architectural Feature Access Control Register (EL1) Section G8.2.32 of AArch64-Reference-Manual.
+// ***************************************
+
+#define CPACR_cp11          (0b11 << 20)
+#define CPACR_VALUE         CPACR_cp11
+
 #endif

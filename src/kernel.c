@@ -6,7 +6,7 @@
 #include "peripherals/irq.h"
 #include "peripherals/timer.h"
 
-void kernel_main(void)
+void main(void)
 {
 	init_printf(0, putc);
 	irq_vector_init();

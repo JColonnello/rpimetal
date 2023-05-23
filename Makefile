@@ -22,7 +22,7 @@ $(BUILD_DIR)/%.S.o: $(SRC_DIR)/%.S
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
 
 $(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES)
-	$(LD) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES)
+	$(LD) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES)
 	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
 
 run: all

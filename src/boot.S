@@ -4,8 +4,8 @@
 
 .section ".text.boot"
 
-.globl _start
-_start:
+.globl boot
+boot:
 	mrs	x0, mpidr_el1		
 	and	x0, x0,#0xFF		// Check processor id
 	cbz	x0, master			// Hang for all non-primary CPU
@@ -28,6 +28,9 @@ master:
 	ldr	x0, =HCR_VALUE
 	msr	hcr_el2, x0
 
+	ldr x0, =CPACR_VALUE
+	msr cpacr_el1, x0
+
 	/* qemu starts at EL2, than is not possible to access any register of EL3 */
 	//ldr	x0, =SCR_VALUE
 	//msr	scr_el3, x0
@@ -41,11 +44,17 @@ master:
 	eret				
 
 el1_entry:
-	adr	x0, bss_begin
-	adr	x1, bss_end
-	sub	x1, x1, x0
-	bl 	memzero
-
 	mov	sp, #LOW_MEMORY
-	bl	kernel_main
+	b	_start
 	b 	proc_hang		// should never come here
+
+// Stubs
+.globl _exit, _close, _lseek, _read, _write, _sbrk
+_exit:
+_close:
+_lseek:
+_read:
+_write:
+_sbrk:
+
+b proc_hang
