@@ -49,12 +49,11 @@ el1_entry:
 	b 	proc_hang		// should never come here
 
 // Stubs
-.globl _exit, _close, _lseek, _read, _write, _sbrk
+.globl _exit, _close, _lseek, _read, _write
 _exit:
 _close:
 _lseek:
 _read:
 _write:
-_sbrk:
 
 b proc_hang
