@@ -43,7 +43,7 @@ void enable_interrupt_controller()
 
 void show_invalid_entry_message(int type, unsigned long esr, unsigned long address)
 {
-	printf("%s, ESR: %x, address: %x\n", entry_error_messages[type], esr, address);
+	printf("%s, ESR: %lx, address: %lx\n", entry_error_messages[type], esr, address);
 }
 
 void handle_gpu_irq(unsigned irq)
@@ -52,11 +52,11 @@ void handle_gpu_irq(unsigned irq)
 	for(unsigned handled = 1; handled; irq &= ~handled)
 	{
 		handled = 0;
-		if(handled = irq & 1<<19)
+		if((handled = irq & 1<<19))
 			handle_uart0();
-		else if(handled = irq & 1<<1)
+		else if((handled = irq & 1<<1))
 			mbox_read();
-		else if(handled = irq & 1<<9)
+		else if((handled = irq & 1<<9))
 			continue;
 			// printf("GPU 2: %x\n", get32(IRQ_PENDING_2));
 	}
@@ -71,9 +71,9 @@ void handle_irq(void)
 	for(unsigned handled = 1; handled; irq &= ~handled)
 	{
 		handled = 0;
-		if(handled = irq & 1<<11)
+		if((handled = irq & 1<<11))
 			handle_timer_irq();
-		else if(handled = irq & 1<<8)
+		else if((handled = irq & 1<<8))
 			handle_gpu_irq(get32(IRQ_BASIC_PENDING));
 	}
 	if(irq)
