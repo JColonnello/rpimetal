@@ -1,5 +1,5 @@
 #include "utils.h"
-#include "printf.h"
+#include <stdio.h>
 #include "peripherals/timer.h"
 
 const unsigned int interval = 20000000;

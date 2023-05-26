@@ -1,5 +1,5 @@
 #include "utils.h"
-#include "printf.h"
+#include <stdio.h>
 #include "entry.h"
 #include "peripherals/irq.h"
 #include "peripherals/timer.h"

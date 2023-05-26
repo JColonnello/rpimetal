@@ -27,6 +27,7 @@
 #include "mbox.h"
 #include "peripherals/uart.h"
 #include <stdint.h>
+#include <stddef.h>
 
 /* PL011 UART registers */
 #define UART0_DR        ((volatile uint32_t*)(MMIO_BASE+0x00201000))
@@ -181,10 +182,19 @@ char uart_recv() {
 /**
  * Display a string
  */
-void uart_send_string(char *s) {
+void uart_send_string(const char *s) {
     while(*s) {
         uart_send(*s++);
     }
+}
+
+/**
+ * Display a buffer of chars
+*/
+void uart_send_buffer(const char *s, size_t n)
+{
+    for(unsigned i = 0; i < n; i++)
+        uart_send(s[i]);
 }
 
 /**
@@ -200,10 +210,4 @@ void uart_hex(unsigned int d) {
         n+=n>9?0x37:0x30;
         uart_send(n);
     }
-}
-
-// This function is required by printf function
-void putc ( void* p, char c)
-{
-	uart_send(c);
 }

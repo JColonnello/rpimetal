@@ -11,6 +11,7 @@ boot:
 	cbz	x0, master			// Hang for all non-primary CPU
 	b	proc_hang
 
+.globl proc_hang
 proc_hang: 
 	wfi
 	b 	proc_hang
@@ -47,13 +48,3 @@ el1_entry:
 	mov	sp, #LOW_MEMORY
 	b	_start
 	b 	proc_hang		// should never come here
-
-// Stubs
-.globl _exit, _close, _lseek, _read, _write
-_exit:
-_close:
-_lseek:
-_read:
-_write:
-
-b proc_hang
