@@ -24,6 +24,7 @@
  */
 
 #include "gpio.h"
+#include <stdio.h>
 
 /* mailbox message buffer */
 volatile unsigned int  __attribute__((aligned(16))) mbox[36];
