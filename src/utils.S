@@ -26,3 +26,28 @@ delay:
 	bne delay
 	ret
 	
+.macro stub func
+.section .rodata
+0:
+.string "\func"
+.section .text
+.global \func
+\func:
+	adr x0, 0b
+	b undef_func
+	ret
+.endm
+
+stub _lseek
+stub _read
+stub _kill
+stub _getpid
+stub _gettimeofday
+stub getwd
+stub lstat
+stub _open
+stub posix_memalign
+stub _stat
+stub _unlink
+stub chmod
+stub umask

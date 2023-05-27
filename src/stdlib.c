@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #define stub(func) void func(void) { \
     undef_func(#func); \
@@ -24,8 +25,9 @@ void *_sbrk(intptr_t increment)
         return (void*)-1;
     }
     
+    void *last_break = curr_break;
     curr_break += increment;
-    return curr_break;
+    return last_break;
 }
 
 int _write(int fd, const void *buf, size_t count)
@@ -78,11 +80,22 @@ int _close(int fd)
 
 void _exit(int status)
 {
-    printf("Exitting kernel: %d\n", status);
+    // Unprintable
+    // printf("Exitting kernel: %d\n", status);
     proc_hang();
 }
 
-stub(_lseek);
-stub(_read);
-stub(_kill);
-stub(_getpid);
+long sysconf(int name)
+{
+    switch (name)
+    {
+        // The maximum number of files that a process can have open at any time.  Must not be less than _POSIX_OPEN_MAX (20)
+        case _SC_OPEN_MAX:
+            return 4096;
+        case _SC_PAGESIZE:
+            return 4096;
+        default:
+            printf("Unknown sysconf variable: %d\n", name);
+            return 0;
+    }
+}
