@@ -6,23 +6,23 @@ KERNEL = kernel8.img
 
 C_FILES = $(shell find $(SRC_DIR) -name '*.c')
 ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
-OBJ_FILES = $(C_FILES:$(SRC_DIR)/%=$(BUILD_DIR)/%.o)
-OBJ_FILES += $(ASM_FILES:$(SRC_DIR)/%=$(BUILD_DIR)/%.o)
+OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o)
+OBJ_FILES += $(ASM_FILES:%=$(BUILD_DIR)/%.o)
 
 all: $(KERNEL)
 
 clean:
 	rm -rf $(BUILD_DIR) *.img 
 
-$(BUILD_DIR)/%.c.o: $(SRC_DIR)/%.c
+$(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
 
-$(BUILD_DIR)/%.S.o: $(SRC_DIR)/%.S
+$(BUILD_DIR)/%.S.o: %.S
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
 
-$(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES)
-	$(LD) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES)
+$(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/modules/payload.o
+	$(LD) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -lbfd -lz -liberty -lsframe $(BUILD_DIR)/modules/payload.o
 	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
 
 run: all
@@ -35,5 +35,6 @@ uart0:
 	nc -lkvp 4444
 
 -include $(OBJ_FILES:%.o=%.d)
+-include modules/Makefile
 
 .PHONY: all run uart0 debug

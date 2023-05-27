@@ -6,6 +6,8 @@
 #include "peripherals/irq.h"
 #include "peripherals/timer.h"
 
+extern int load_elf();
+
 void main(void)
 {
 	irq_vector_init();
@@ -17,6 +19,8 @@ void main(void)
 	// Exception test
     // unsigned int r=*((volatile unsigned int*)0xFFFFFFFFFF000000);
 	// r++;
+	load_elf();
+
 	printf("Done!\n");
 	return;
 }
