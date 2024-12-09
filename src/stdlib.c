@@ -11,15 +11,15 @@
     proc_hang(); \
 }
 
-extern const void __bss_end__;
-static void* curr_break = (void*)&__bss_end__;
+extern const void __end;
+static void* curr_break = (void*)&__end;
 __attribute__((noreturn)) extern void proc_hang();
 
 void *_sbrk(intptr_t increment)
 {
     if(increment == 0)
         return curr_break;
-    if(curr_break + increment < &__bss_end__)
+    if(curr_break + increment < &__end)
     {
         errno = ENOMEM;
         return (void*)-1;

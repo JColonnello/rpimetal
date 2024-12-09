@@ -59,4 +59,18 @@ jump_el1:
 	eret				
 
 el1_entry:
+	ldr x0, .LC0
+	mov w1, #0
+	ldr x2, .LC1
+	sub x2, x2, x0
+	bl memset
+	ldr x0, .LC2
+	msr tpidr_el0, x0
 	b	_start
+
+.LC0:
+	.dword __tbss_start__
+.LC1:
+	.dword __tbss_end__
+.LC2:
+	.dword __tdata_start__
