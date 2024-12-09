@@ -8,8 +8,12 @@ SECTIONS
 	.text : { *(.text) }
 	.rodata : { *(.rodata) }
 	.data : { *(.data) }
-	. = ALIGN(0x8);
-	__bss_start__ = .;
-	.bss : { *(.bss*) } 
-	__bss_end__ = .;
+	.bss : 
+	{
+		. = ALIGN(0x1000);
+		*(.bss.mmu);
+		__bss_start__ = .;
+		*(.bss*) 
+		__bss_end__ = .;
+	} 
 }
