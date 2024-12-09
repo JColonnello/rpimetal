@@ -27,10 +27,9 @@ delay:
 	ret
 	
 .macro stub func
-.section .rodata
+.section .text
 0:
 .string "\func"
-.section .text
 .global \func
 \func:
 	adr x0, 0b
