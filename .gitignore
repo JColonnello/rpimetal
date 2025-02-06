@@ -42,3 +42,10 @@
 *.su
 *.idb
 *.pdb
+
+# Build tool files
+.cache/
+compile_commands.json
+
+# Toolchain tarballs
+toolchain/tarballs/

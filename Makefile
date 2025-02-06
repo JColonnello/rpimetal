@@ -34,7 +34,10 @@ debug: all
 uart0:
 	nc -lkvp 4444
 
+toolchain: toolchain/Dockerfile
+	docker buildx build toolchain/
+
 -include $(OBJ_FILES:%.o=%.d)
 -include modules/Makefile
 
-.PHONY: all run uart0 debug
+.PHONY: all run uart0 debug toolchain

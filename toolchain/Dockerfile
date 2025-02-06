@@ -51,8 +51,10 @@ cp -an /build/obj/*/lib*.a /opt/aarch64-none-elf/aarch64-none-elf/lib/ && \
 rm -rf /build
 
 FROM base AS toolchain
-RUN apt install -y make
+RUN apt install -y make git clangd bear
 COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
 COPY --from=libs /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
+RUN useradd -ms /bin/bash rpi
+USER rpi
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
 WORKDIR /src
