@@ -65,7 +65,7 @@ el1_entry:
 	sub x2, x2, x0
 	bl memset
 	ldr x0, .LC2
-	msr tpidr_el0, x0
+	msr tpidr_el1, x0
 	b	_start
 
 .LC0:
