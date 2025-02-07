@@ -51,10 +51,19 @@ cp -an /build/obj/*/lib*.a /opt/aarch64-none-elf/aarch64-none-elf/lib/ && \
 rm -rf /build
 
 FROM base AS toolchain
-RUN apt install -y make git clangd bear gnupg2
 COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
 COPY --from=libs /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
-RUN useradd -ms /bin/bash rpi
+RUN apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-traditional
+ARG UNAME=rpi
+ARG UID=1000
+ARG UPASS=password
+RUN groupadd --system ${UNAME} --gid ${UID} && \
+useradd --uid ${UID} --system --gid ${UNAME} --home-dir /home/${UNAME} --create-home --comment "Docker image user" --shell /bin/bash ${UNAME} && \
+chown -R ${UNAME}:${UNAME} /home/${UNAME} && \
+usermod -aG sudo ${UNAME} && \
+echo "${UNAME}  ALL=(ALL) ALL" | sudo tee /etc/sudoers.d/permissions && \
+echo ${UNAME}:${UPASS} | chpasswd
 USER rpi
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
-WORKDIR /src
+WORKDIR /workspaces/rpimetal
+RUN echo "add-auto-load-safe-path /workspaces/rpimetal/.gdbinit" > "/home/rpi/.config/gdb/gdbinit"
