@@ -2,12 +2,13 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/debian
 {
 	"name": "Toolchain",
+	"image": "rpimetal-toolchain",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"build":
-	{
-		// Path is relative to the devcontainer.json file.
-		"dockerfile": "../toolchain/Dockerfile"
-	},
+	// "build":
+	// {
+	// 	// Path is relative to the devcontainer.json file.
+	// 	"dockerfile": "../toolchain/Dockerfile"
+	// },
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
