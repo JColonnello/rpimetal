@@ -23,9 +23,9 @@ RUN for i in gcc fixincludes libatomic libbacktrace libcody libcpp libdecnumber 
 for i in newlib libgloss; do ln -snfv ../newlib-*/$i; done
 # for i in gettext gmp isl mpc mpfr; do ln -snv ../$i-*/ $i; done
 WORKDIR /build/obj/
-RUN apt update && apt install -y make file texinfo g++ libgmp-dev libmpfr-dev libmpc-dev libisl-dev bison flex libncurses-dev libexpat-dev
+RUN apt update && apt install -y make file texinfo g++ libgmp-dev libmpfr-dev libmpc-dev libisl-dev bison flex libncurses-dev libexpat-dev python3-dev
 ENV target=aarch64-none-elf
-RUN ../binutils/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat && \
+RUN ../binutils/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat --with-python && \
 make -j$(nproc) && \
 make install && \
 cd / && \
@@ -53,7 +53,7 @@ rm -rf /build
 FROM base AS toolchain
 COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
 COPY --from=libs /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
-RUN apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd
+RUN apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.11
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password

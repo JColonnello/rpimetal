@@ -13,7 +13,7 @@
             "remote": true,
             "cwd": "${workspaceRoot}",
             "gdbpath": "aarch64-none-elf-gdb",
-            "valuesFormatting": "parseText"
+            "valuesFormatting": "prettyPrinters"
         }
     ]
 }
