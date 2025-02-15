@@ -52,8 +52,8 @@ int out[2] = {0,0};
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
 
-extern char _binary_build_modules_test_unit_c_o_start[];
-extern char _binary_build_modules_test_unit_c_o_end[];
+extern char _binary_build_modules_test_unit_ko_start[];
+extern char _binary_build_modules_test_unit_ko_end[];
 
 
 
@@ -109,7 +109,7 @@ int load_elf() {
 	
     printf("loading %s\n", filename);
 
-	FILE *memfile = fmemopen(_binary_build_modules_test_unit_c_o_start, (size_t)(_binary_build_modules_test_unit_c_o_end - _binary_build_modules_test_unit_c_o_start), "rb");
+	FILE *memfile = fmemopen(_binary_build_modules_test_unit_ko_start, (size_t)(_binary_build_modules_test_unit_ko_end - _binary_build_modules_test_unit_ko_start), "rb");
 	
 	// load test_unit.o object file
 	bfd *abfd = bfd_openstreamr(filename, NULL, memfile);
