@@ -1,0 +1,17 @@
+diff --git a/Makefile.def b/Makefile.def
+index 4896c5c692c..4451b572760 100644
+--- a/Makefile.def
++++ b/Makefile.def
+@@ -136,12 +136,10 @@ host_modules= { module= libiconv;
+ host_modules= { module= m4; };
+ host_modules= { module= readline; };
+ host_modules= { module= sid; };
+-host_modules= { module= sim; };
+ host_modules= { module= texinfo; no_install= true; };
+ host_modules= { module= zlib; no_install=true; no_check=true;
+ 		bootstrap=true;
+ 	        extra_configure_flags='@extra_host_zlib_configure_flags@ @host_libs_picflag@';};
+-host_modules= { module= gnulib; };
+ host_modules= { module= gdbsupport; };
+ host_modules= { module= gdbserver; };
+ host_modules= { module= gdb; };

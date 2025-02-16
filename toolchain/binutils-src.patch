@@ -1,0 +1,12 @@
+diff --git a/libiberty/getcwd.c b/libiberty/getcwd.c
+index 28f26eb179f..1d999312bd2 100644
+--- a/libiberty/getcwd.c
++++ b/libiberty/getcwd.c
+@@ -31,7 +31,6 @@ directory's path doesn't fit in @var{len} characters, the result is
+ #endif
+ 
+ extern char *getwd ();
+-extern int errno;
+ 
+ #ifndef MAXPATHLEN
+ #define MAXPATHLEN 1024
