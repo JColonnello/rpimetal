@@ -29,7 +29,7 @@ run: all
 	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -vnc :1,websocket=on
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -nographic -d int -S -s
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -nographic -d int -vnc :1,websocket=on -S -s
 
 uart0:
 	nc -lkvp 4444
