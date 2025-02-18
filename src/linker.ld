@@ -15,10 +15,10 @@ SECTIONS
 		*(.bss*) 
 		__bss_end__ = .;
 	}
+	_tcb = ALIGN(0x10);
+	. = . + 0x10;
 	.tdata : 
 	{ 
-		__tdata_start__ = .;
-		. = . + 0x10;
 		*(.tdata) 
 	}
 	.tbss : 

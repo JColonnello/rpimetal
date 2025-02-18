@@ -73,4 +73,4 @@ el1_entry:
 .LC1:
 	.dword __tbss_end__
 .LC2:
-	.dword __tdata_start__
+	.quad _tcb
