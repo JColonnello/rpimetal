@@ -17,7 +17,8 @@
 				"ms-vscode.cpptools-extension-pack",
 				"ms-vscode.makefile-tools",
 				"webfreak.debug",
-				"llvm-vs-code-extensions.vscode-clangd"
+				"llvm-vs-code-extensions.vscode-clangd",
+				"ms-vscode.hexeditor"
 			]
 		}
 	},
