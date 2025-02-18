@@ -79,6 +79,11 @@ chown -R ${UNAME}:${UNAME} /home/${UNAME} && \
 usermod -aG sudo ${UNAME} && \
 echo "${UNAME}  ALL=(ALL) ALL" | sudo tee /etc/sudoers.d/permissions && \
 echo ${UNAME}:${UPASS} | chpasswd
+RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
+&& mkdir /commandhistory \
+&& touch /commandhistory/.bash_history \
+&& chown -R $UNAME /commandhistory \
+&& echo "$SNIPPET" >> "/home/$UNAME/.bashrc"
 USER rpi
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
 WORKDIR /workspaces/rpimetal
