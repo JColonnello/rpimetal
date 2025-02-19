@@ -6,5 +6,5 @@ AS=$(ARMGNU)-gcc
 
 INC_DIRS = include
 override INC_FLAGS += $(addprefix -I,$(INC_DIRS))
-override CFLAGS += -Wall -Wno-unknown-pragmas -ffreestanding -std=gnu11 -g
-override ASFLAGS += -Wall -ffreestanding -g
+override CFLAGS += -Wall -Wno-unknown-pragmas -std=gnu11 -g -mtp=el1
+override ASFLAGS += -Wall -g

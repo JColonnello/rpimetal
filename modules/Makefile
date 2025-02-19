@@ -11,7 +11,7 @@ all: default
 # 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(MODULES_DIR)/test_unit.ko: $(MODULES_DIR)/test_unit.c.o
-	$(CC) -r -static-libgcc -Wl,-Bstatic -lc $(CFLAGS) $^ -o $@
+	$(CC) -r $(CFLAGS) $^ -o $@
 
 $(MODULES_DIR)/payload.o: $(MODULES_DIR)/test_unit.ko
 	$(ARMGNU)-objcopy --input binary \

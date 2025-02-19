@@ -8,7 +8,7 @@
 
 extern int load_elf();
 
-void main(void)
+int main(void)
 {
 	irq_vector_init();
 	// timer_init();
@@ -22,5 +22,5 @@ void main(void)
 	load_elf();
 
 	printf("Done!\n");
-	return;
+	return 0;
 }
