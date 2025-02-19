@@ -33,13 +33,14 @@ git apply < binutils-src.patch
 FROM base AS compile
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt update && apt --no-install-recommends install -y make file texinfo g++ libgmp-dev libmpfr-dev libmpc-dev libisl-dev bison flex libncurses-dev libexpat-dev python3-dev
+    apt update && apt --no-install-recommends install -y make file texinfo g++ libgmp-dev libmpfr-dev libmpc-dev libisl-dev bison flex libncurses-dev libexpat-dev python3-dev bear
 WORKDIR /build/obj/
 
 FROM compile AS cross
 ENV target=aarch64-none-elf
-RUN --mount=type=bind,from=source,source=/usr/local/src,target=/usr/local/src,rw CFLAGS_FOR_TARGET='-mtp=tpidr_el1' /usr/local/src/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat --with-python --enable-newlib-reent-thread-local --enable-newlib-multithread && \
-make -j$(nproc) && \
+RUN --mount=type=bind,from=source,source=/usr/local/src,target=/usr/local/src,rw CFLAGS_FOR_TARGET='-mtp=tpidr_el1 -g -O2' /usr/local/src/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat --with-python --enable-newlib-reent-thread-local --enable-newlib-multithread && \
+# mkdir -p /opt/aarch64-none-elf/ && bear --append --output /opt/aarch64-none-elf/compile_commands.json -- make -j$[$(nproc) - 1] && \
+make -j$[$(nproc) - 1] && \
 make install && \
 cd / && \
 rm -rf /build/
@@ -60,8 +61,9 @@ RUN --mount=type=bind,from=source,source=/tarballs/root/binutils-gdb,target=/usr
     autogen Makefile.def && \
     rm -r gdb readline && \
     popd && \
-LDFLAGS="-Wl,--defsym=_close=0,--defsym=_lseek=0,--defsym=_read=0,--defsym=_write=0,--defsym=_fstat=0,--defsym=_isatty=0,--defsym=_sbrk=0,--defsym=_exit=0,--defsym=_kill=0,--defsym=_getpid=0,--defsym=umask=0,--defsym=chmod=0,--defsym=sysconf=0,--defsym=lstat=0,--defsym=getwd=0,--defsym=_gettimeofday=0,--defsym=_open=0,--defsym=_stat=0,--defsym=_unlink=0,--defsym=access=0,--defsym=_fileno=0,--defsym=dup=0,--defsym=fchmod=0,--defsym=utime=0,--defsym=_setmode=0,--defsym=chdir=0,--defsym=rmdir=0,--defsym=pipe=0,--defsym=sleep=0,--defsym=dup2=0,--defsym=execvp=0,--defsym=execv=0,--defsym=_execve=0,--defsym=_fork=0,--defsym=_wait=0" CFLAGS='-Wno-error=implicit-function-declaration -mtp=tpidr_el1' /usr/local/src/configure --prefix= -host=$target --enable-install-libbfd --without-mmap --disable-largefile --enable-install-libiberty --disable-unit-tests --disable-werror --enable-tls --enable-newlib-reent-thread-local --enable-newlib-multithread && \
-make -j$(nproc) && \
+LDFLAGS="-Wl,--defsym=_close=0,--defsym=_lseek=0,--defsym=_read=0,--defsym=_write=0,--defsym=_fstat=0,--defsym=_isatty=0,--defsym=_sbrk=0,--defsym=_exit=0,--defsym=_kill=0,--defsym=_getpid=0,--defsym=umask=0,--defsym=chmod=0,--defsym=sysconf=0,--defsym=lstat=0,--defsym=getwd=0,--defsym=_gettimeofday=0,--defsym=_open=0,--defsym=_stat=0,--defsym=_unlink=0,--defsym=access=0,--defsym=_fileno=0,--defsym=dup=0,--defsym=fchmod=0,--defsym=utime=0,--defsym=_setmode=0,--defsym=chdir=0,--defsym=rmdir=0,--defsym=pipe=0,--defsym=sleep=0,--defsym=dup2=0,--defsym=execvp=0,--defsym=execv=0,--defsym=_execve=0,--defsym=_fork=0,--defsym=_wait=0" CFLAGS='-Wno-error=implicit-function-declaration -mtp=tpidr_el1 -g -O2' /usr/local/src/configure --prefix= -host=$target --enable-install-libbfd --without-mmap --disable-largefile --enable-install-libiberty --disable-unit-tests --disable-werror --enable-tls --enable-newlib-reent-thread-local --enable-newlib-multithread && \
+# bear --append --output /opt/aarch64-none-elf/compile_commands.json -- make -j$[$(nproc) - 1] && \
+make -j$[$(nproc) - 1] && \
 make install DESTDIR=/build/pkg && \
 cp -ar /build/pkg/include/ /opt/aarch64-none-elf/aarch64-none-elf/ && \
 cp -ar /build/pkg/lib/ /opt/aarch64-none-elf/aarch64-none-elf/ && \
@@ -84,10 +86,11 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 && touch /commandhistory/.bash_history \
 && chown -R $UNAME /commandhistory \
 && echo "$SNIPPET" >> "/home/$UNAME/.bashrc"
+COPY --from=source /usr/local/src /usr/local/src
+COPY --from=compile /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
+COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
+# RUN cp -a /opt/aarch64-none-elf/compile_commands.json /usr/local/src/
 USER rpi
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
 WORKDIR /workspaces/rpimetal
 RUN mkdir -p "/home/rpi/.config/gdb/" && echo "add-auto-load-safe-path /workspaces/rpimetal/.gdbinit" > "/home/rpi/.config/gdb/gdbinit"
-COPY --from=source /usr/local/src /usr/local/src
-COPY --from=compile /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
-COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
