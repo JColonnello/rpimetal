@@ -27,6 +27,7 @@
             "program": "./build/kernel8.elf",
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
+            // "preLaunchTask": "debug",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",

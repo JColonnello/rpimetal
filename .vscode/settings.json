@@ -1,7 +1,10 @@
 {
     "C_Cpp.intelliSenseEngine": "disabled",
     "clangd.arguments": [
-        "--query-driver=/opt/aarch64-none-elf/bin/aarch64-none-elf-gcc"
+        "--query-driver=/opt/aarch64-none-elf/bin/aarch64-none-elf-gcc",
+        "--background-index",
+        "--clang-tidy",
+        "--enable-config",
     ],
     "debug.allowBreakpointsEverywhere": true
 }
