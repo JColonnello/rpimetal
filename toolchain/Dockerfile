@@ -71,7 +71,9 @@ cp -an /build/obj/*/lib*.a /opt/aarch64-none-elf/aarch64-none-elf/lib/ && \
 rm -rf /build
 
 FROM base AS toolchain
-RUN apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.11
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+--mount=type=cache,target=/var/lib/apt,sharing=locked \
+apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.11 locales
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password
@@ -90,7 +92,13 @@ COPY --from=source /usr/local/src /usr/local/src
 COPY --from=compile /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
 COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
 # RUN cp -a /opt/aarch64-none-elf/compile_commands.json /usr/local/src/
-USER rpi
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+locale-gen
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+USER rpi
 WORKDIR /workspaces/rpimetal
 RUN mkdir -p "/home/rpi/.config/gdb/" && echo "add-auto-load-safe-path /workspaces/rpimetal/.gdbinit" > "/home/rpi/.config/gdb/gdbinit"
