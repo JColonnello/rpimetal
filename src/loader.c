@@ -15,6 +15,9 @@
 #include <sglib.h>
 #include "loader.h"
 
+#define PG(x)	     ((x) & ~ (bfd_vma) 0xfff)
+#define PG_OFFSET(x) ((x) &   (bfd_vma) 0xfff)
+
 typedef struct section_data
 {
 	const char *name;
@@ -120,6 +123,67 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 	match->symbol_count = count + n;
 }
 
+static void shift_and_apply_reloc(bfd *abfd, bfd_byte *data, reloc_howto_type *howto, bfd_vma relocation)
+{
+	relocation >>= (bfd_vma)howto->rightshift;
+	/* Shift everything up to where it's going to be used.  */
+	relocation <<= (bfd_vma)howto->bitpos;
+	bfd_vma val = 0;
+	switch (bfd_get_reloc_size(howto))
+	{
+	case 0:
+		break;
+	case 1:
+		val = bfd_get_8(abfd, data);
+		break;
+	case 2:
+		val = bfd_get_16(abfd, data);
+		break;
+	case 3:
+		val = bfd_get_24(abfd, data);
+		break;
+	case 4:
+		val = bfd_get_32(abfd, data);
+		break;
+#ifdef BFD64
+	case 8:
+		val = bfd_get_64(abfd, data);
+		break;
+#endif
+	default:
+		abort();
+		break;
+	}
+
+	val = ((val & ~howto->dst_mask) | (((val & howto->src_mask) + relocation) & howto->dst_mask));
+
+	switch (bfd_get_reloc_size(howto))
+	{
+	case 0:
+		break;
+	case 1:
+		bfd_put_8(abfd, val, data);
+		break;
+	case 2:
+		bfd_put_16(abfd, val, data);
+		break;
+	case 3:
+		bfd_put_24(abfd, val, data);
+		break;
+	case 4:
+		bfd_put_32(abfd, val, data);
+		break;
+#ifdef BFD64
+	case 8:
+		bfd_put_64(abfd, val, data);
+		break;
+#endif
+	default:
+		abort();
+		break;
+	}
+}
+
 static bfd_reloc_status_type
 bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 		       arelent *reloc_entry,
@@ -133,7 +197,7 @@ bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 	bfd_size_type octets = reloc_entry->address * bfd_octets_per_byte (abfd, input_section);
   	if (!bfd_reloc_offset_in_range (howto, abfd, input_section, octets))
     	return bfd_reloc_outofrange;
-	bfd_reloc_status_type flag = bfd_reloc_continue;
+	bfd_reloc_status_type flag = bfd_reloc_ok;
 
 		
 	asection *reloc_target_output_section;
@@ -165,12 +229,8 @@ bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 	/* Here the variable relocation holds the final address of the
 		symbol we are relocating against, plus any addend.  */
 
-	if (howto->pc_relative)
-	{
-		relocation -= input_section->output_section->vma + input_section->output_offset;
-		if (howto->pcrel_offset)
-			relocation -= reloc_entry->address;
-	}
+	relocation -= input_section->output_section->vma + input_section->output_offset;
+	relocation = PG(relocation) - PG(reloc_entry->address);
 
 	if (howto->complain_on_overflow != complain_overflow_dont
 		&& flag == bfd_reloc_ok)
@@ -179,11 +239,27 @@ bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 					 howto->rightshift,
 					 bfd_arch_bits_per_address (abfd),
 					 relocation);
+
+	static struct reloc_howto_struct hi_howto = 
+	{
+		.size = 4,
+		.dst_mask = (1u<<24) - (1u<<5),
+		.src_mask = 0,
+		.rightshift = 14,
+		.bitpos = 5,
+	},
+	lo_howto =
+	{
+		.size = 4,
+		.dst_mask = (1u<<31) - (1u<<29),
+		.src_mask = 0,
+		.rightshift = 12,
+		.bitpos = 29,
+	};
 	
-	relocation >>= 12;
-	relocation &= 0b11;
-	relocation <<= 28;
-	*((uint32_t*)data) |= relocation;
+	data = (bfd_byte *) data + octets;
+	shift_and_apply_reloc(abfd, data, &hi_howto, relocation);
+	shift_and_apply_reloc(abfd, data, &lo_howto, relocation);
 
 	return flag;
 }
@@ -192,8 +268,8 @@ const struct reloc_howto_struct adrp_howto = (struct reloc_howto_struct)
 {
 	.type = 275,
 	.size = 4,
-	.bitsize = 19,
-	.rightshift = 14,
+	.bitsize = 21,
+	.rightshift = 12,
 	.bitpos = 5,
 	.complain_on_overflow = complain_overflow_signed,
 	.pc_relative = true,
@@ -266,7 +342,7 @@ int loader_load_file(FILE *file, const char *filename)
 			symbols_simple[symbols_simple_count++] = (symbol_data)
 			{
 				.name = strdup(symbol->name),
-				.address = (void*)symbol->value,
+				.address = symbol->section->output_offset + (void*)symbol->value,
 			};
 		}
 	}
