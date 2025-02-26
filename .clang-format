@@ -1,0 +1,8 @@
+BasedOnStyle: Microsoft
+UseTab: ForIndentation
+IndentWidth: 4
+TabWidth: 4
+# AlignConsecutiveTableGenDefinitionColons:
+#   Enabled: true
+#   AcrossEmptyLines: true
+#   AcrossComments: false
