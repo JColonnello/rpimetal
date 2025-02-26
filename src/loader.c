@@ -120,6 +120,87 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 	match->symbol_count = count + n;
 }
 
+static bfd_reloc_status_type
+bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
+		       arelent *reloc_entry,
+		       asymbol *symbol,
+		       void *data ATTRIBUTE_UNUSED,
+		       asection *input_section,
+		       bfd *output_bfd,
+		       char **error_message ATTRIBUTE_UNUSED)
+{
+	reloc_howto_type *howto = reloc_entry->howto;
+	bfd_size_type octets = reloc_entry->address * bfd_octets_per_byte (abfd, input_section);
+  	if (!bfd_reloc_offset_in_range (howto, abfd, input_section, octets))
+    	return bfd_reloc_outofrange;
+	bfd_reloc_status_type flag = bfd_reloc_continue;
+
+		
+	asection *reloc_target_output_section;
+	reloc_target_output_section = symbol->section->output_section;
+
+  	/* Convert input-section-relative symbol value to absolute.  */
+	bfd_vma output_base = 0;
+	if ((output_bfd && ! howto->partial_inplace)
+		|| reloc_target_output_section == NULL)
+		output_base = 0;
+	else
+		output_base = reloc_target_output_section->vma;
+	output_base += symbol->section->output_offset;
+
+	if (bfd_get_flavour (abfd) == bfd_target_elf_flavour
+      && (symbol->section->flags & SEC_ELF_OCTETS))
+    	output_base *= bfd_octets_per_byte (abfd, input_section);
+
+	bfd_vma relocation;
+	if (bfd_is_com_section (symbol->section))
+		relocation = 0;
+	else
+		relocation = symbol->value;
+	relocation += output_base;
+
+	/* Add in supplied addend.  */
+	relocation += reloc_entry->addend;
+
+	/* Here the variable relocation holds the final address of the
+		symbol we are relocating against, plus any addend.  */
+
+	if (howto->pc_relative)
+	{
+		relocation -= input_section->output_section->vma + input_section->output_offset;
+		if (howto->pcrel_offset)
+			relocation -= reloc_entry->address;
+	}
+
+	if (howto->complain_on_overflow != complain_overflow_dont
+		&& flag == bfd_reloc_ok)
+	  flag = bfd_check_overflow (howto->complain_on_overflow,
+					 howto->bitsize,
+					 howto->rightshift,
+					 bfd_arch_bits_per_address (abfd),
+					 relocation);
+	
+	relocation >>= 12;
+	relocation &= 0b11;
+	relocation <<= 28;
+	*((uint32_t*)data) |= relocation;
+
+	return flag;
+}
+
+const struct reloc_howto_struct adrp_howto = (struct reloc_howto_struct)
+{
+	.type = 275,
+	.size = 4,
+	.bitsize = 19,
+	.rightshift = 14,
+	.bitpos = 5,
+	.complain_on_overflow = complain_overflow_signed,
+	.pc_relative = true,
+	.pcrel_offset = true,
+	.special_function = bfd_elf_adrp_hi_reloc,
+};
+
 int loader_load_file(FILE *file, const char *filename)
 {
 	// load ELF file
@@ -182,7 +263,6 @@ int loader_load_file(FILE *file, const char *filename)
 		}
 		else if(symbol->flags & BSF_GLOBAL)
 		{
-			symbol->value += symbol->section->output_offset;
 			symbols_simple[symbols_simple_count++] = (symbol_data)
 			{
 				.name = strdup(symbol->name),
@@ -212,7 +292,8 @@ int loader_load_file(FILE *file, const char *filename)
 		{
 			arelent *reloc = relpp[i];
 			asymbol *symbol = *reloc->sym_ptr_ptr;
-			
+			if(reloc->howto->type == 275)
+				reloc->howto = &adrp_howto;
 			if(!bfd_is_und_section(symbol->section) || symbol->value != 0)
 			{
 				section->output_section = symbol->section;
