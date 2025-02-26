@@ -185,13 +185,13 @@ static void shift_and_apply_reloc(bfd *abfd, bfd_byte *data, reloc_howto_type *h
 }
 
 static bfd_reloc_status_type
-bfd_elf_adrp_hi_reloc (bfd *abfd ATTRIBUTE_UNUSED,
+bfd_elf_adrp_hi_reloc (bfd *abfd,
 		       arelent *reloc_entry,
 		       asymbol *symbol,
-		       void *data ATTRIBUTE_UNUSED,
+		       void *data,
 		       asection *input_section,
 		       bfd *output_bfd,
-		       char **error_message ATTRIBUTE_UNUSED)
+		       char **error_message)
 {
 	reloc_howto_type *howto = reloc_entry->howto;
 	bfd_size_type octets = reloc_entry->address * bfd_octets_per_byte (abfd, input_section);
@@ -275,7 +275,19 @@ const struct reloc_howto_struct adrp_howto = (struct reloc_howto_struct)
 	.pc_relative = true,
 	.pcrel_offset = true,
 	.special_function = bfd_elf_adrp_hi_reloc,
-};
+},
+adrp_howto_nc = (struct reloc_howto_struct)
+{
+	.type = 275,
+	.size = 4,
+	.bitsize = 21,
+	.rightshift = 12,
+	.bitpos = 5,
+	.complain_on_overflow = complain_overflow_dont,
+	.pc_relative = true,
+	.pcrel_offset = true,
+	.special_function = bfd_elf_adrp_hi_reloc,
+};;
 
 int loader_load_file(FILE *file, const char *filename)
 {
@@ -370,6 +382,8 @@ int loader_load_file(FILE *file, const char *filename)
 			asymbol *symbol = *reloc->sym_ptr_ptr;
 			if(reloc->howto->type == 275)
 				reloc->howto = &adrp_howto;
+			else if(reloc->howto->type == 276)
+				reloc->howto = &adrp_howto_nc;
 			if(!bfd_is_und_section(symbol->section) || symbol->value != 0)
 			{
 				section->output_section = symbol->section;
