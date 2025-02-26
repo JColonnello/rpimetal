@@ -2,212 +2,247 @@
 #define PACKAGE_VERSION "0.1"
 #define _GNU_SOURCE
 
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/_intsup.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <unistd.h>
-// #include <sys/mman.h>
 #include <string.h>
-// #include <config.h>
 #include <bfd.h>
 #include <fcntl.h>
+#include <sglib.h>
+#include "loader.h"
 
+typedef struct section_data
+{
+	const char *name;
+	void *address;
 
+	struct section_data *next;
+} section_data;
 
+typedef struct assembly_data
+{
+	const char *name;
+	struct section_data *sections;
+	uint16_t symbol_count;
+	struct symbol_data *symbols;
 
-////////////////////////////////////////////////////////////////////////////////
-//  change these a little bit for different behavior
-//
-////////////////////////////////////////////////////////////////////////////////
+	struct assembly_data *next;
+} assembly_data;
 
-//// callbacks
+static assembly_data *loaded_assemblies;
 
+#define NAME_COMP(x,y) ((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) : strcmp((x)->name, (y)->name))
+#define COMP_DIRECT(comp,x,y) comp(&x,&y)
+#define NAME_COMP_DIRECT(x,y) COMP_DIRECT(NAME_COMP, x, y)
 
-// a function to be used as callback
-int my_callback_01(int a) {
-	printf("my_callback_01 called!\n");
-	return a*2;
+SGLIB_DEFINE_LIST_PROTOTYPES(assembly_data, NAME_COMP, next)
+SGLIB_DEFINE_LIST_FUNCTIONS(assembly_data, NAME_COMP, next)
+SGLIB_DEFINE_LIST_PROTOTYPES(section_data, NAME_COMP, next)
+SGLIB_DEFINE_LIST_FUNCTIONS(section_data, NAME_COMP, next)
+
+static void free_assembly_data(assembly_data *assembly)
+{
+	free((void*)assembly->name);
+	
+	for (int i = 0; i < assembly->symbol_count; i++)
+		free((void*)assembly->symbols[i].name);
+	free(assembly->symbols);
+	
+	struct sglib_section_data_iterator it;
+	for(section_data *s = sglib_section_data_it_init(&it, assembly->sections); s != NULL; s = sglib_section_data_it_next(&it))
+	{
+		free((void*)s->name);
+		free(s);
+	}
+
+	free(assembly);
 }
 
-int my_callback_02(int a) {
-	printf("my_callback_02 called!\n");
-	return a*4;
+static const symbol_data *search_symbol(const char *name)
+{
+	#define SEARCH_FUNC(p, k) strcmp((&p)->name, k)
+
+	struct sglib_assembly_data_iterator it;
+	bool found = false;
+	int index = -1;
+	for(assembly_data *assembly = sglib_assembly_data_it_init(&it, loaded_assemblies); assembly != NULL; assembly = sglib_assembly_data_it_next(&it))
+	{
+		SGLIB_ARRAY_BINARY_SEARCH(symbol_data, assembly->symbols, 0, assembly->symbol_count, name, SEARCH_FUNC, found, index);
+		if(found)
+			return &assembly->symbols[index];
+	}
+	return NULL;
+
+	#undef SEARCH_FUNC
 }
 
-typedef int (*t_callback)(int);
-typedef void (*t_test_function)(int, int*);
-
-
-// test_unit.o is expected to call a function with the name "callback";
-// we will relocate those calls to the address in the my_callback variable
-t_callback my_callback = my_callback_02;
-// our job is to load the binary code of the object file into memory,
-// then find the address of the function with the following name
-const char *test_function_name = "test_function_02";
-// store it on the following pointer:
-// and then execute it on the two arguments "in" and "out":
-int in = 10;
-int out[2] = {0,0};
-
-// this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
-t_test_function test_function;
-
-extern char _binary_build_modules_test_unit_ko_start[];
-extern char _binary_build_modules_test_unit_ko_end[];
-
-
-
-
-
-
-
-
-typedef void *ptr_t;
-typedef unsigned char byte_t;
-
-static byte_t *memory = NULL;
-static size_t size = 0;
-
+void *loader_search_symbol(const char *name)
+{
+	const symbol_data *sym = search_symbol(name);
+	if(sym != NULL)
+		return sym->address;
+	else
+		return NULL;
+}
 
 // Returns the first number greater or equal than "value" which is a multiple of "size"
-size_t _round_up_to_multiple_of(size_t value, size_t size) {
-  size_t r = value % size;
-  return r == 0 ? value : value - r + size;
-}
+// static size_t _round_up_to_multiple_of(size_t value, size_t size)
+// {
+// 	size_t r = value % size;
+// 	return r == 0 ? value : value - r + size;
+// }
 
-// allocs an aligned block of at least minMemSize bytes of zeroed memory,
-// which is readable, writable and executable
-void alloc_rwx(size_t minMemSize) {
-  // TODO: make sure this works for windows and not just POSIX
-  
-  size_t pagesize = sysconf(_SC_PAGESIZE);
-  
-  if (minMemSize <= pagesize)
-    size = pagesize;
-  else
-    size = _round_up_to_multiple_of(size, pagesize);
-    
-  if ((memory = memalign(pagesize, size)) == 0)
-    exit(1); // TODO: error msg
-//   if (mprotect(memory, size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0)
-//     exit(1); // TODO: error msg
-  memset(memory, 0, size);
-}
+unsigned int loader_init()
+{
+	assembly_data *start = calloc(1, sizeof(assembly_data));
+	sglib_assembly_data_add(&loaded_assemblies, start);
 
-
-
-
-
-
-
-int load_elf() {
-		
 	// init libbfd
-	bfd_init();
-	
-	const char *filename = "test_unit.o";
-	
-    printf("loading %s\n", filename);
+	return bfd_init();
+}
 
-	FILE *memfile = fmemopen(_binary_build_modules_test_unit_ko_start, (size_t)(_binary_build_modules_test_unit_ko_end - _binary_build_modules_test_unit_ko_start), "rb");
-	
-	// load test_unit.o object file
-	bfd *abfd = bfd_openstreamr(filename, NULL, memfile);
+void loader_destroy()
+{
+	free_assembly_data(loaded_assemblies);
+}
+
+void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
+{
+	assembly_data *match, key = { .name = NULL };
+	match = sglib_assembly_data_find_member(loaded_assemblies, &key);
+	size_t count = match->symbol_count;
+	match->symbols = reallocarray(match->symbols, count + n, sizeof(symbol_data));
+	memcpy(&match->symbols[count], symbols, sizeof(symbol_data) * n);
+	match->symbol_count = count + n;
+}
+
+int loader_load_file(FILE *file, const char *filename)
+{
+	// load ELF file
+	bfd *abfd = bfd_openstreamr(filename, NULL, file);
 
 	// no section info is loaded unless we call bfd_check_format!:
-	if (!bfd_check_format (abfd, bfd_object)) {
+	if (!bfd_check_format(abfd, bfd_object))
+	{
 		printf("Failed to open object file!\n");
-		exit(-1);        
-    }
-	
-	
-	// load .text (binary code) and .data (initialized data);
-	// eventually need to load .bss also (uninitialized data).
-	asection *text = bfd_get_section_by_name (abfd, ".text");
-	asection *data = bfd_get_section_by_name (abfd, ".data");
-	
-	
-	// we need enough memory to store both data and binary code
-	size_t minMemSize = data->size + text->size;
-	
-	// allocate that much memory, which is both readable, writable and executable
-	alloc_rwx(minMemSize);
-	
-	// copy the contents of the data and executable sections into the newly allocated memory
-	bfd_get_section_contents(abfd, data, memory, 0, data->size);
-	bfd_get_section_contents(abfd, text, memory + data->size, 0, text->size);
-	
-	// store the memory addresses where the sections start
-	void *data_start = memory;
-	void *text_start = memory + data->size;
-	
-	// in order to perform relocations, bfd must know what these addresses are
-	// this is how we let it know
-	text->output_offset = (long unsigned int) text_start;
-	data->output_offset = (long unsigned int) data_start;
-	
+		exit(-1);
+	}
+
+	section_data *loaded_sections = NULL;
+	// first pass through section table to allocate memory and set output offsets
+	for (asection *section = abfd->sections; section != NULL; section = section->next)
+	{
+		flagword flags = section->flags;
+		// skip section if not meant to be loaded
+		if (!(flags & SEC_LOAD))
+			continue;
+		
+		// void *memory = aligned_alloc(1<<section->alignment_power, section->size);
+		void *memory = aligned_alloc(0x1000, section->size);
+		bfd_get_section_contents(abfd, section, memory, 0, section->size);
+		section->output_offset = (bfd_vma)memory;
+		if(strcmp(section->name, ".text") == 0)
+			printf("add-symbol-file %s 0x%08lx", filename, section->output_offset);
+		else
+			printf(" -s %s 0x%08lx", section->name, section->output_offset);
+
+		section_data *sec = malloc(sizeof(section_data));
+		*sec = (section_data)
+		{
+			.name = strdup(section->name),
+			.address = memory,
+		};
+		sglib_section_data_add(&loaded_sections, sec);
+	}
+	printf("\n");
+	sglib_section_data_reverse(&loaded_sections);
 	
 	// load the symbol table from the object file
 	size_t symsize = bfd_get_symtab_upper_bound(abfd);
 	asymbol **symbols = malloc(symsize);
 	int symcount = bfd_canonicalize_symtab(abfd, symbols);
-	
-	int i;
-	// we look for two special symbols
-	for (i = 0; i<symcount; i++) {
-		// "callback" should appear on the special "undefined" section of the
-		// object file; this section should have starting address = 0, and hence
-		// we set the value of the symbol to be the address of our callback
-		if (!strcmp(symbols[i]->name, "callback")) {
-			printf("Changing address for undefined symbol: %s\n", symbols[i]->name);
-			symbols[i]->value = (long unsigned int) my_callback;
+	symbol_data *symbols_simple = malloc(sizeof(symbol_data) * symcount);
+	size_t symbols_simple_count = 0;
+	for (int i = 0; i < symcount; i++)
+	{
+		asymbol *symbol = symbols[i];
+		// Symbols in undefined section have to be pointed to external symbols
+		if(bfd_is_und_section(symbol->section))
+		{
+			const symbol_data *ref = search_symbol(symbol->name);
+			if(ref != NULL)
+				symbol->value = (symvalue)ref->address;
+			else
+				fprintf(stderr, "Can't find undefined symbol: %s\n", symbol->name);
+
 		}
-		// test_function_name should be defined somewhere in the .text section,
-		// and the value of that symbol should be the entry point for the corresponding
-		// function relative to the start of the .text section;
-		// since we copied the .text section to memory starting at the text_start address,
-		// the true entry point will be text_start + value of that symbol
-		if (!strcmp(symbols[i]->name, test_function_name)) {
-			printf("Storing address of symbol: %s!\n", symbols[i]->name);
-			test_function = text_start + symbols[i]->value;
-		}
-	}
-	
-	// Now we load the relocation table
-	long relsize = bfd_get_reloc_upper_bound (abfd, text);
-	arelent **relpp = malloc (relsize);
-	long relcount = bfd_canonicalize_reloc (abfd, text, relpp, symbols);
-	char *tmp;
-	
-	
-	
-	
-	for (i = 0; i<relcount; i++) {
-		arelent *reloc = relpp[i];
-		// we want to look for every call to the symbol "callback",
-		// and relocate ("patch") that call so that it calls the function
-		// whose pointer we stored in the "callback" symbol entry
-		// (which in turn was the contents of the my_callback pointer)
-		if (!strcmp((*reloc->sym_ptr_ptr)->name, "callback")) {
-			printf("Found relocation for symbol: %s!\n", (*reloc->sym_ptr_ptr)->name);
-			text->output_section = (*reloc->sym_ptr_ptr)->section;
-			bfd_perform_relocation(abfd, reloc, text_start, text, NULL, &tmp);
+		else if(symbol->flags & BSF_GLOBAL)
+		{
+			symbol->value += symbol->section->output_offset;
+			symbols_simple[symbols_simple_count++] = (symbol_data)
+			{
+				.name = strdup(symbol->name),
+				.address = (void*)symbol->value,
+			};
 		}
 	}
 	
+	struct sglib_section_data_iterator sd_it;
+	section_data *sd_cur = sglib_section_data_it_init(&sd_it, loaded_sections);
+	for (asection *section = abfd->sections; section != NULL; section = section->next)
+	{
+		if(sd_cur == NULL)
+			break;
+		else if(NAME_COMP(sd_cur, section) == 0)
+			sd_cur = sglib_section_data_it_next(&sd_it);
+		else
+			continue;
+
+		// Now we load the relocation table
+		long relsize = bfd_get_reloc_upper_bound(abfd, section);
+		arelent **relpp = malloc(relsize);
+		long relcount = bfd_canonicalize_reloc(abfd, section, relpp, symbols);
+		char *tmp;
 	
-	// once everything is patched, we should be able to run test_function
-	// which should call our callback!
-	
-	test_function(in,out);
-	
-	printf("calling \"%s\" from test_unit.o on %d, and \"out\".\n", test_function_name, in);
-	printf("out = { %d, %d }\n", out[0], out[1]);
-	
+		for (int i = 0; i < relcount; i++)
+		{
+			arelent *reloc = relpp[i];
+			asymbol *symbol = *reloc->sym_ptr_ptr;
+			
+			if(!bfd_is_und_section(symbol->section) || symbol->value != 0)
+			{
+				section->output_section = symbol->section;
+				printf("Relocating symbol (%s) to section (%s) at 0x%08lx + 0x%08lx = 0x%08lx\n", symbol->name, section->output_section->name, section->output_section->output_offset, symbol->value, section->output_section->output_offset + symbol->value);
+				bfd_reloc_status_type status = bfd_perform_relocation(abfd, reloc, (void*)section->output_offset, section, NULL, &tmp);
+				if(status == bfd_reloc_dangerous)
+					printf("Dangerous relocation: %s\n", tmp);
+				else if(status != bfd_reloc_ok && status != bfd_reloc_undefined)
+					printf("Failed relocation. Error %d\n", status);
+			}
+			else
+				printf("Symbol (%s) is undefined\n", symbol->name);
+		}
+		free(relpp);
+	}
 	free(symbols);
-	free (relpp);
+	symbols_simple = reallocarray(symbols_simple, sizeof(symbol_data), symbols_simple_count);
+	SGLIB_ARRAY_SINGLE_QUICK_SORT(symbol_data, symbols_simple, symbols_simple_count, NAME_COMP_DIRECT);
+
+	assembly_data *assembly = malloc(sizeof(assembly_data));
+	*assembly = (assembly_data)
+	{
+		.name = bfd_get_filename(abfd),
+		.sections = loaded_sections,
+		.symbol_count = symbols_simple_count,
+		.symbols = symbols_simple,
+	};
+	sglib_assembly_data_add(&loaded_assemblies, assembly);
+
 	bfd_close(abfd);
-    return 0;
+	printf("Finished loading %s\n", filename);
+	return 0;
 }
-
-

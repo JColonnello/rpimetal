@@ -22,7 +22,7 @@ disable_irq:
 	mrs	x1, esr_el1
 	mrs	x2, elr_el1
 	bl	show_invalid_entry_message
-	b	err_hang
+	b	proc_hang
 	.endm
 
 	.macro	ventry	label
@@ -148,5 +148,3 @@ el1_irq:
 	bl	handle_irq
 	kernel_exit 
 
-.globl err_hang
-err_hang: b err_hang
