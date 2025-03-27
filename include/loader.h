@@ -27,3 +27,7 @@ unsigned int loader_init();
 void loader_add_starting_symbols(size_t n, const symbol_data symbols[n]);
 int loader_load_file(FILE *file, const char *filename);
 void *loader_search_symbol(const char *name);
+static inline void *local_tls_offset(void *var)
+{
+	return (void*)(var - __builtin_thread_pointer());
+}
