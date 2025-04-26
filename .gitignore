@@ -49,3 +49,6 @@ compile_commands.json
 
 # Toolchain tarballs
 toolchain/tarballs/
+
+# Auxiliary miscelaneous files
+misc/

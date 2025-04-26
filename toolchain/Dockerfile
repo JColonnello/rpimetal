@@ -13,13 +13,16 @@ RUN git clone --depth 1 --branch gdb-15.2-release git://sourceware.org/git/binut
 git clone --depth 1 --branch releases/gcc-14.2.0 git://gcc.gnu.org/git/gcc.git && \
 git clone --depth 1 --branch newlib-4.5.0 git://sourceware.org/git/newlib-cygwin.git && \
 find -type d -name '.git' | xargs rm -rf && \
-mkdir -p /tarballs/gcc-deps && \
-cd gcc && \
-    contrib/download_prerequisites --directory /tarballs/gcc-deps && \
-cd /tarballs/gcc-deps && \
-    rm *.tar.* && \
-    ls | perl -ne 'print if s/^((.+)-(?:[0-9]+\.?)+)$/$1 $2/' | xargs -L1 mv && \
-    for d in *; do rm /tarballs/root/gcc/$d; done && \
+
+## Uncomment this section to build gcc dependencies from source
+# mkdir -p /tarballs/gcc-deps && \
+# cd gcc && \
+#     contrib/download_prerequisites --directory /tarballs/gcc-deps && \
+# cd /tarballs/gcc-deps && \
+#     rm *.tar.* && \
+#     ls | perl -ne 'print if s/^((.+)-(?:[0-9]+\.?)+)$/$1 $2/' | xargs -L1 mv && \
+#     for d in *; do rm /tarballs/root/gcc/$d; done && \
+
 mkdir -p /usr/local/src && \
 cd /tarballs && \
     for d in root/newlib-cygwin root/gcc root/binutils-gdb; do pushd $d; find . -print | cpio -pdlmu /usr/local/src; popd; done

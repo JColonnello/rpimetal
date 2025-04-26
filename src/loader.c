@@ -62,6 +62,8 @@ static void free_assembly_data(assembly_data *assembly)
 	for(section_data *s = sglib_section_data_it_init(&it, assembly->sections); s != NULL; s = sglib_section_data_it_next(&it))
 	{
 		free((void*)s->name);
+		if(!s->tls)
+			free(s->address);
 		free(s);
 	}
 
@@ -251,171 +253,29 @@ void loader_print_tls_layout(const struct tls_info *schema)
 
 #pragma region Relocations
 
-static void shift_and_apply_reloc(bfd *abfd, bfd_byte *data, reloc_howto_type *howto, bfd_vma relocation)
+extern bfd_vma _bfd_aarch64_elf_resolve_relocation(bfd *input_bfd, bfd_reloc_code_real_type r_type, bfd_vma place,
+                                                   bfd_vma value, bfd_vma addend, bool weak_undef_p);
+
+extern bfd_reloc_status_type _bfd_aarch64_elf_put_addend(bfd *abfd, bfd_byte *address, bfd_reloc_code_real_type r_type,
+                                                         reloc_howto_type *howto, bfd_signed_vma addend);
+extern bfd_reloc_code_real_type elf64_aarch64_bfd_reloc_from_type(bfd *abfd, unsigned int r_type);
+extern reloc_howto_type *elf64_aarch64_howto_from_type(bfd *abfd, unsigned int r_type);
+
+bfd_reloc_status_type aarch64_relocate(unsigned int r_type, bfd *input_bfd, asection *input_section, bfd_vma offset,
+                                       bfd_vma value, bfd_vma addend)
 {
-	relocation >>= (bfd_vma)howto->rightshift;
-	/* Shift everything up to where it's going to be used.  */
-	relocation <<= (bfd_vma)howto->bitpos;
-	bfd_vma val = 0;
-	switch (bfd_get_reloc_size(howto))
-	{
-	case 0:
-		break;
-	case 1:
-		val = bfd_get_8(abfd, data);
-		break;
-	case 2:
-		val = bfd_get_16(abfd, data);
-		break;
-	case 3:
-		val = bfd_get_24(abfd, data);
-		break;
-	case 4:
-		val = bfd_get_32(abfd, data);
-		break;
-#ifdef BFD64
-	case 8:
-		val = bfd_get_64(abfd, data);
-		break;
-#endif
-	default:
-		abort();
-		break;
-	}
+	reloc_howto_type *howto;
+	bfd_vma place;
 
-	val = ((val & ~howto->dst_mask) | (((val & howto->src_mask) + relocation) & howto->dst_mask));
+	howto = elf64_aarch64_howto_from_type(input_bfd, r_type);
+	place = (input_section->output_section->vma + input_section->output_offset + offset);
 
-	switch (bfd_get_reloc_size(howto))
-	{
-	case 0:
-		break;
-	case 1:
-		bfd_put_8(abfd, val, data);
-		break;
-	case 2:
-		bfd_put_16(abfd, val, data);
-		break;
-	case 3:
-		bfd_put_24(abfd, val, data);
-		break;
-	case 4:
-		bfd_put_32(abfd, val, data);
-		break;
-#ifdef BFD64
-	case 8:
-		bfd_put_64(abfd, val, data);
-		break;
-#endif
-	default:
-		abort();
-		break;
-	}
+	r_type = elf64_aarch64_bfd_reloc_from_type(input_bfd, r_type);
+	value += input_section->output_section->output_offset;
+	value = _bfd_aarch64_elf_resolve_relocation(input_bfd, r_type, place, value, addend, false);
+	return _bfd_aarch64_elf_put_addend(input_bfd, (bfd_byte *)place, r_type, howto, value);
 }
 
-static bfd_reloc_status_type
-bfd_elf_adrp_hi_reloc (bfd *abfd,
-		       arelent *reloc_entry,
-		       asymbol *symbol,
-		       void *data,
-		       asection *input_section,
-		       bfd *output_bfd,
-		       char **error_message)
-{
-	reloc_howto_type *howto = reloc_entry->howto;
-	bfd_size_type octets = reloc_entry->address * bfd_octets_per_byte (abfd, input_section);
-  	if (!bfd_reloc_offset_in_range (howto, abfd, input_section, octets))
-    	return bfd_reloc_outofrange;
-	bfd_reloc_status_type flag = bfd_reloc_ok;
-
-		
-	asection *reloc_target_output_section;
-	reloc_target_output_section = symbol->section->output_section;
-
-  	/* Convert input-section-relative symbol value to absolute.  */
-	bfd_vma output_base = 0;
-	if ((output_bfd && ! howto->partial_inplace)
-		|| reloc_target_output_section == NULL)
-		output_base = 0;
-	else
-		output_base = reloc_target_output_section->vma;
-	output_base += symbol->section->output_offset;
-
-	if (bfd_get_flavour (abfd) == bfd_target_elf_flavour
-      && (symbol->section->flags & SEC_ELF_OCTETS))
-    	output_base *= bfd_octets_per_byte (abfd, input_section);
-
-	bfd_vma relocation;
-	if (bfd_is_com_section (symbol->section))
-		relocation = 0;
-	else
-		relocation = symbol->value;
-	relocation += output_base;
-
-	/* Add in supplied addend.  */
-	relocation += reloc_entry->addend;
-
-	/* Here the variable relocation holds the final address of the
-		symbol we are relocating against, plus any addend.  */
-
-	relocation -= input_section->output_section->vma + input_section->output_offset;
-	relocation = PG(relocation) - PG(reloc_entry->address);
-
-	if (howto->complain_on_overflow != complain_overflow_dont
-		&& flag == bfd_reloc_ok)
-	  flag = bfd_check_overflow (howto->complain_on_overflow,
-					 howto->bitsize,
-					 howto->rightshift,
-					 bfd_arch_bits_per_address (abfd),
-					 relocation);
-
-	static struct reloc_howto_struct hi_howto = 
-	{
-		.size = 4,
-		.dst_mask = (1u<<24) - (1u<<5),
-		.src_mask = 0,
-		.rightshift = 14,
-		.bitpos = 5,
-	},
-	lo_howto =
-	{
-		.size = 4,
-		.dst_mask = (1u<<31) - (1u<<29),
-		.src_mask = 0,
-		.rightshift = 12,
-		.bitpos = 29,
-	};
-	
-	data = (bfd_byte *) data + octets;
-	shift_and_apply_reloc(abfd, data, &hi_howto, relocation);
-	shift_and_apply_reloc(abfd, data, &lo_howto, relocation);
-
-	return flag;
-}
-
-const struct reloc_howto_struct adrp_howto = (struct reloc_howto_struct)
-{
-	.type = 275,
-	.size = 4,
-	.bitsize = 21,
-	.rightshift = 12,
-	.bitpos = 5,
-	.complain_on_overflow = complain_overflow_signed,
-	.pc_relative = true,
-	.pcrel_offset = true,
-	.special_function = bfd_elf_adrp_hi_reloc,
-},
-adrp_howto_nc = (struct reloc_howto_struct)
-{
-	.type = 275,
-	.size = 4,
-	.bitsize = 21,
-	.rightshift = 12,
-	.bitpos = 5,
-	.complain_on_overflow = complain_overflow_dont,
-	.pc_relative = true,
-	.pcrel_offset = true,
-	.special_function = bfd_elf_adrp_hi_reloc,
-};;
 
 #pragma endregion
 
@@ -526,23 +386,18 @@ int loader_load_file(FILE *file, const char *filename)
 		long relsize = bfd_get_reloc_upper_bound(abfd, section);
 		arelent **relpp = malloc(relsize);
 		long relcount = bfd_canonicalize_reloc(abfd, section, relpp, symbols);
-		char *tmp;
 	
 		for (int i = 0; i < relcount; i++)
 		{
 			arelent *reloc = relpp[i];
 			asymbol *symbol = *reloc->sym_ptr_ptr;
-			if(reloc->howto->type == 275)
-				reloc->howto = &adrp_howto;
-			else if(reloc->howto->type == 276)
-				reloc->howto = &adrp_howto_nc;
 			if(!bfd_is_und_section(symbol->section) || symbol->value != 0)
 			{
 				section->output_section = symbol->section;
 				printf("Relocating symbol (%s) to section (%s) at 0x%08lx + 0x%08lx = 0x%08lx\n", symbol->name, section->output_section->name, section->output_section->output_offset, symbol->value, section->output_section->output_offset + symbol->value);
-				bfd_reloc_status_type status = bfd_perform_relocation(abfd, reloc, (void*)section->output_offset, section, NULL, &tmp);
+				bfd_reloc_status_type status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, reloc->addend);
 				if(status == bfd_reloc_dangerous)
-					printf("Dangerous relocation: %s\n", tmp);
+					printf("Dangerous relocation\n");
 				else if(status != bfd_reloc_ok && status != bfd_reloc_undefined)
 					printf("Failed relocation. Error %d\n", status);
 			}

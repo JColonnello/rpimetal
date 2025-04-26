@@ -1,3 +1,25 @@
+diff --git a/bfd/elfnn-aarch64.c b/bfd/elfnn-aarch64.c
+index 94c9a01069b..c9b91050a58 100644
+--- a/bfd/elfnn-aarch64.c
++++ b/bfd/elfnn-aarch64.c
+@@ -2188,7 +2188,7 @@ elfNN_aarch64_bfd_reloc_from_howto (reloc_howto_type *howto)
+ 
+ /* Given R_TYPE, return the bfd internal relocation enumerator.  */
+ 
+-static bfd_reloc_code_real_type
++bfd_reloc_code_real_type
+ elfNN_aarch64_bfd_reloc_from_type (bfd *abfd, unsigned int r_type)
+ {
+   static bool initialized_p = false;
+@@ -2271,7 +2271,7 @@ elfNN_aarch64_howto_from_bfd_reloc (bfd_reloc_code_real_type code)
+   return NULL;
+ }
+ 
+-static reloc_howto_type *
++reloc_howto_type *
+ elfNN_aarch64_howto_from_type (bfd *abfd, unsigned int r_type)
+ {
+   bfd_reloc_code_real_type val;
 diff --git a/libiberty/getcwd.c b/libiberty/getcwd.c
 index 28f26eb179f..1d999312bd2 100644
 --- a/libiberty/getcwd.c
