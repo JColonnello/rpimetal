@@ -74,10 +74,13 @@ int main(void)
 	};
 	loader_add_starting_symbols(sizeof(sym)/sizeof(*sym), sym);
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(test_unit), "build/modules/test_unit.ko");
+	loader_print_tls_layout(tls_schema);
+    struct tls_data *tcb = loader_create_tcb();
+    loader_switch_tcb(tcb);
 	// once everything is patched, we should be able to run test_function
 	// which should call our callback!
 	test_function = loader_search_symbol(test_function_name);
-	module_data_ptr = loader_search_symbol("module_data");
+    module_data_ptr = loader_tls_ptr(tcb, (ssize_t)loader_search_symbol("module_data"));
 	
 	printf("calling \"%s\" from test_unit.o on %d, and \"out\".\n", test_function_name, in);
 	test_function(in, out);

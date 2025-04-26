@@ -37,26 +37,7 @@ typedef struct assembly_data
 	struct assembly_data *next;
 } assembly_data;
 
-typedef struct tls_data
-{
-	uint : 8;
-	unsigned int thread_id;
-	// unsigned int data_size;
-	uint64_t data[];
-} tls_data;
-
-typedef struct tls_info
-{
-	unsigned int offset;
-	unsigned int size;
-	bool in_use;
-	struct assembly_data *assembly;
-	struct tls_info *prev;
-} tls_info;
-
 static assembly_data *loaded_assemblies;
-static tls_data *tls_template;
-static tls_info *tls_schema;
 
 #define NAME_COMP(x,y) ((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) : strcmp((x)->name, (y)->name))
 #define COMP_DIRECT(comp,x,y) comp(&x,&y)
@@ -120,11 +101,17 @@ void *loader_search_symbol(const char *name)
 // 	size_t r = value % size;
 // 	return r == 0 ? value : value - r + size;
 // }
+static void loader_initial_tls(const void * restrict data, size_t size, size_t alignment);
 
 unsigned int loader_init()
 {
+	extern const void _tcb, __tbss_end__;
 	assembly_data *start = calloc(1, sizeof(assembly_data));
 	sglib_assembly_data_add(&loaded_assemblies, start);
+    loader_initial_tls(&_tcb + 0x10, &__tbss_end__ - &_tcb - 0x10, 0x10);
+    struct tls_data *tcb = loader_create_tcb();
+
+    loader_switch_tcb(tcb);
 
 	// init libbfd
 	return bfd_init();
@@ -144,6 +131,123 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 	memcpy(&match->symbols[count], symbols, sizeof(symbol_data) * n);
 	match->symbol_count = count + n;
 }
+
+#pragma region TLS
+
+typedef struct __attribute__((packed)) tls_data
+{
+	uint64_t _res1;
+	uint32_t thread_id;
+	uint32_t _res2;
+	// unsigned int data_size;
+	uint64_t data[];
+} tls_data;
+
+typedef struct tls_info
+{
+	unsigned int offset;
+	unsigned int size;
+	bool in_use;
+	const struct assembly_data *assembly;
+	struct tls_info *prev;
+} tls_info;
+
+static tls_data *tls_template;
+tls_info *tls_schema;
+
+static ssize_t register_tls_segment(size_t size, size_t alignment, const assembly_data *assembly)
+{
+	tls_info *tls_tmp_schema = tls_schema;
+	size_t tls_tmp_template_size = tls_schema != NULL ? tls_schema->offset + tls_schema->size : 0;
+
+	tls_info *tmpi;
+	ssize_t offset = tls_tmp_template_size;
+	ssize_t extra = offset % alignment;
+	// Add empty space for alignment
+	if(extra > 0)
+	{
+		tmpi = malloc(sizeof(tls_info));
+		*tmpi = (tls_info)
+		{
+			.in_use = false,
+			.offset = offset,
+			.size = extra,
+		};
+		SGLIB_LIST_ADD(tls_info, tls_tmp_schema, tmpi, prev);
+		offset += tmpi->size;
+	}
+	// Add to TLS schema
+	tmpi = malloc(sizeof(tls_info));
+	*tmpi = (tls_info)
+	{
+		.in_use = true,
+		.offset = offset,
+		.size = size,
+		.assembly = assembly,
+	};
+	SGLIB_LIST_ADD(tls_info, tls_tmp_schema, tmpi, prev);
+	tls_template = realloc(tls_template, sizeof(*tls_template) + tls_tmp_template_size + extra + size);
+	tls_tmp_template_size += extra + size;
+	tls_schema = tls_tmp_schema;
+	return offset;
+}
+
+void *loader_tls_ptr(const tls_data *tcb, ssize_t offset)
+{
+	return (void*)tcb + sizeof(*tcb) + offset;
+}
+
+static void loader_initial_tls(const void * restrict data, size_t size, size_t alignment)
+{
+	ssize_t offset = register_tls_segment(size, alignment, loaded_assemblies);
+	void * restrict ptr = loader_tls_ptr(tls_template, offset);
+	memcpy(ptr, data, size);
+}
+
+void *local_tls_offset(void *var);
+
+tls_data *loader_create_tcb()
+{
+	if(tls_schema == NULL)
+		return NULL;
+	size_t size = tls_schema->offset + tls_schema->size;
+	tls_data *tcb = malloc(size + sizeof(tls_data));
+	memcpy(tcb, tls_template, size);
+	return tcb;
+}
+
+struct tls_data *loader_switch_tcb(struct tls_data *tcb)
+{
+	struct tls_data *tmp = __builtin_thread_pointer();
+	if(tcb != NULL)
+	{
+		asm ("msr tpidr_el1, %0"
+			: 
+			: "r" (tcb));
+	}
+	return tmp;
+}
+
+void loader_print_tls_layout(const struct tls_info *schema)
+{
+	printf("TLS Schema:\n");
+	const assembly_data *last = NULL;
+	SGLIB_LIST_MAP_ON_ELEMENTS(const tls_info, schema, segment, prev, {
+		if(segment->in_use)
+		{
+			if(last != segment->assembly)
+			{
+				last = segment->assembly;
+				printf("Assembly: %s\n", last->name != NULL ? last->name : "LOCAL");
+			}
+			printf("\tOffset = %u, Size = %u\n", segment->offset, segment->size);
+		}
+		else
+			printf("\tAlignment = %u\n", segment->size);
+	});
+}
+
+#pragma endregion
 
 #pragma region Relocations
 
@@ -329,9 +433,6 @@ int loader_load_file(FILE *file, const char *filename)
 
 	assembly_data *assembly = malloc(sizeof(assembly_data));
 
-	tls_info *tls_tmp_schema = tls_schema;
-	size_t tls_tmp_template_size = tls_schema != NULL ? tls_schema->offset + tls_schema->size : 0;
-	tls_tmp_template_size += sizeof(*tls_template);
 	section_data *loaded_sections = NULL;
 	// first pass through section table to allocate memory and set output offsets
 	for (asection *section = abfd->sections; section != NULL; section = section->next)
@@ -345,36 +446,10 @@ int loader_load_file(FILE *file, const char *filename)
 		// If it's thread local data, add to TLS template
 		if (flags & SEC_THREAD_LOCAL)
 		{
-			tls_info *tmpi = malloc(sizeof(tls_info));
-			unsigned int offset = tls_tmp_schema != NULL ? tls_tmp_schema->offset + tls_tmp_schema->size : 0;
-			unsigned int extra = offset % 1<<section->alignment_power;
-			// Add empty space for alignment
-			if(extra > 0)
-			{
-				*tmpi = (tls_info)
-				{
-					.in_use = false,
-					.offset = offset,
-					.size = extra,
-				};
-				SGLIB_LIST_ADD(tls_info, tls_tmp_schema, tmpi, prev);
-				offset += tmpi->size;
-			}
-			// Add to TLS schema
-			*tmpi = (tls_info)
-			{
-				.in_use = true,
-				.offset = offset,
-				.size = section->size,
-				.assembly = assembly,
-			};
-			SGLIB_LIST_ADD(tls_info, tls_tmp_schema, tmpi, prev);
-			tls_template = realloc(tls_template, tls_tmp_template_size + extra + section->size);
+			ssize_t offset = register_tls_segment(section->size, 1<<section->alignment_power, assembly);
 			// Set pointer to copy section contents to template
-			tls_tmp_template_size += extra;
-			memory = &tls_template[tls_tmp_template_size];
-			section->output_offset = tls_tmp_template_size;
-			tls_tmp_template_size += section->size;
+			memory = loader_tls_ptr(tls_template, offset);
+			section->output_offset = offset;
 		}
 		else
 		{
