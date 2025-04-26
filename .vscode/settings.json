@@ -6,5 +6,8 @@
         "--clang-tidy",
         "--enable-config",
     ],
-    "debug.allowBreakpointsEverywhere": true
+    "debug.allowBreakpointsEverywhere": true,
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": false,
+    "editor.tabSize": 4
 }

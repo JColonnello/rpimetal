@@ -33,6 +33,6 @@
 	// "forwardPorts": [],
 	// Preserve bash history in a volume
 	"mounts": [
-      "source=projectname-bashhistory,target=/commandhistory,type=volume"
+      "source=rpimetal-bashhistory,target=/commandhistory,type=volume"
   ]
 }
