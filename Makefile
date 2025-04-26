@@ -22,8 +22,9 @@ $(BUILD_DIR)/%.S.o: %.S
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
 
 $(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/modules/payload.o
-	$(LD) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -lbfd -lz -liberty -lsframe $(BUILD_DIR)/modules/payload.o
+	$(CC) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -lbfd -lz -liberty -lsframe $(BUILD_DIR)/modules/payload.o
 	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
+# $(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -vnc :1,websocket=on
