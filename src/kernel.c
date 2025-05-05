@@ -51,7 +51,7 @@ int out[4];
 
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
-FILE_FROM_SYMBOL_FUNC_DECL(test_unit);
+FILE_FROM_SYMBOL_FUNC_DECL(test);
 
 int main(void)
 {
@@ -72,7 +72,7 @@ int main(void)
 		{ .name = "tls_int", .address = local_tls_offset(&tls_int) },
 	};
 	loader_add_starting_symbols(sizeof(sym)/sizeof(*sym), sym);
-	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(test_unit), "build/modules/test_unit.ko");
+	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(test), "build/modules/test.ko");
 	loader_print_tls_layout(tls_schema);
     struct tls_data *tcb = loader_create_tcb();
     loader_switch_tcb(tcb);

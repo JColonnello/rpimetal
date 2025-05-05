@@ -1,19 +1,4 @@
-TARGET = $(MODULES_DIR)/payload.o
-MODULES_DIR = build/modules
-# LIBS = -l:libiberty.a -l:libz.a -l:libbfd.a
-
-.PHONY: default all clean
-
-default: $(TARGET)
-all: default
-
-# %.o: %.c
-# 	$(CC) $(CFLAGS) -c $< -o $@
-
-$(MODULES_DIR)/test_unit.ko: $(MODULES_DIR)/test_unit.c.o
-	$(CC) -r $(CFLAGS) $^ -o $@
-
-$(MODULES_DIR)/payload.o: $(MODULES_DIR)/test_unit.ko
+$(BUILD_DIR)/$(MODULES_DIR)/payload.o: $(BUILD_DIR)/$(MODULES_DIR)/test.ko
 	$(ARMGNU)-objcopy --input binary \
     --output elf64-littleaarch64 \
     --rename-section .data=.text,CONTENTS,ALLOC,LOAD,READONLY,DATA \
