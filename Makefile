@@ -1,30 +1,21 @@
 include Makefile.inc
 
 BUILD_DIR = build
+MODULES_DIR = modules
 SRC_DIR = src
 KERNEL = kernel8.img
+MODULES = test
 
-C_FILES = $(shell find $(SRC_DIR) -name '*.c')
-ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
-OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o)
-OBJ_FILES += $(ASM_FILES:%=$(BUILD_DIR)/%.o)
+# Phony targets
+
+.PHONY: all clean rebuild run debug uart0 toolchain
 
 all: $(KERNEL)
 
 clean:
-	rm -rf $(BUILD_DIR) *.img 
+	rm -rf $(BUILD_DIR) *.img
 
-$(BUILD_DIR)/%.c.o: %.c
-	mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
-
-$(BUILD_DIR)/%.S.o: %.S
-	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
-
-$(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/modules/payload.o
-	$(CC) $(CFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -lbfd -lz -liberty -lsframe $(BUILD_DIR)/modules/payload.o
-	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
-# $(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
+rebuild: clean all
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -vnc :1,websocket=on
@@ -36,9 +27,44 @@ uart0:
 	nc -lkvp 4444
 
 toolchain: toolchain/Dockerfile
-	docker buildx build toolchain/
+	docker build -t rpimetal-toolchain toolchain/
 
--include $(OBJ_FILES:%.o=%.d)
--include modules/Makefile
+# Empty recipes
 
-.PHONY: all run uart0 debug toolchain
+%.d: ;
+
+# Module file and recipe
+
+$(BUILD_DIR)/$(MODULES_DIR)/%.ko: $(BUILD_DIR)/$(MODULES_DIR)/%.mk
+
+# Kernel binary
+
+C_FILES = $(shell find $(SRC_DIR) -name '*.c')
+ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
+OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
+
+$(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/modules/payload.o
+	$(CC) $(CFLAGS) -o $(BUILD_DIR)/kernel8.elf -T $^ -lbfd -lz -liberty -lsframe
+	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
+#	$(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
+
+# Object files
+
+$(BUILD_DIR)/%.c.o: %.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
+
+$(BUILD_DIR)/%.S.o: %.S
+	@mkdir -p $(@D)
+	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
+
+$(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
+	@mkdir -p $(@D)
+	$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
+
+# Other Makefiles
+
+include $(MODULES_DIR)/Makefile
+ifneq (clean,$(MAKECMDGOALS))
+-include $(MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
+endif
