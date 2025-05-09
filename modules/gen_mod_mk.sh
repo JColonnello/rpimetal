@@ -15,7 +15,7 @@ OUTPUT_DIRS += \$(DIRS:%=\$(BUILD_DIR)/%)
 MODULE_DIR = $mod
 
 \$(BUILD_DIR)/\$(MODULE_DIR).ko: \$(OBJ_FILES)
-	\$(CC) -r $^ -o \$@
+	\$(CC) -r \$(OBJ_FILES) -o \$@
 
 \$(BUILD_DIR)/\$(MODULE_DIR).mk: \$(DIRS)
 

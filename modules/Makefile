@@ -1,4 +1,4 @@
-$(BUILD_DIR)/$(MODULES_DIR)/payload.o: $(BUILD_DIR)/$(MODULES_DIR)/test.ko
+$(BUILD_DIR)/payload.o: $(BUILD_DIR)/$(MODULES_DIR)/test.ko
 	$(ARMGNU)-objcopy --input binary \
     --output elf64-littleaarch64 \
     --rename-section .data=.text,CONTENTS,ALLOC,LOAD,READONLY,DATA \
