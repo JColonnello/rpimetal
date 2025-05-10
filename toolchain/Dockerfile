@@ -99,9 +99,9 @@ ENV PATH="/opt/aarch64-none-elf/bin:$PATH"
 # Set the locale
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
 locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 USER rpi
 WORKDIR /workspaces/rpimetal
 RUN mkdir -p "/home/rpi/.config/gdb/" && echo "add-auto-load-safe-path /workspaces/rpimetal/.gdbinit" > "/home/rpi/.config/gdb/gdbinit"
