@@ -1,7 +1,7 @@
 #ifndef	_P_TIMER_H
 #define	_P_TIMER_H
 
-#include "peripherals/base.h"
+#include "base.h"
 
 // System timer
 

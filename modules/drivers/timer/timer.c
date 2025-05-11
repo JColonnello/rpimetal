@@ -1,6 +1,6 @@
 #include "utils.h"
 #include <stdio.h>
-#include "peripherals/timer.h"
+#include <drivers/timer.h>
 
 const unsigned int interval = 20000000;
 unsigned int curVal = 0;

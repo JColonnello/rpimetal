@@ -1,7 +1,7 @@
 #ifndef	_P_IRQ_H
 #define	_P_IRQ_H
 
-#include "peripherals/base.h"
+#include "base.h"
 
 #define IRQ_BASIC_PENDING	(PBASE+0x0000B200)
 #define IRQ_PENDING_1		(PBASE+0x0000B204)

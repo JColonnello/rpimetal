@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <errno.h>
-#include <peripherals/uart.h>
+#include <drivers/uart.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <stdbool.h>

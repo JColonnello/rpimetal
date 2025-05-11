@@ -1,10 +1,10 @@
 #include "utils.h"
 #include <stdio.h>
 #include "entry.h"
-#include "peripherals/irq.h"
-#include "peripherals/timer.h"
-#include "peripherals/uart.h"
-#include "mbox.h"
+#include <drivers/irq.h>
+// #include <drivers/timer.h>
+#include <drivers/uart.h>
+#include <drivers/mbox.h>
 #include <stdint.h>
 
 const char *entry_error_messages[] = {
@@ -72,7 +72,9 @@ void handle_irq(void)
 	{
 		handled = 0;
 		if((handled = irq & 1<<11))
-			handle_timer_irq();
+		{
+			// handle_timer_irq();
+		}
 		else if((handled = irq & 1<<8))
 			handle_gpu_irq(get32(IRQ_BASIC_PENDING));
 	}

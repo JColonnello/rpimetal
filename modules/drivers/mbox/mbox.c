@@ -23,7 +23,7 @@
  *
  */
 
-#include "gpio.h"
+#include <drivers/gpio.h>
 #include <stdio.h>
 
 /* mailbox message buffer */

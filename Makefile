@@ -2,16 +2,16 @@ include Makefile.inc
 
 BUILD_DIR = build
 MODULES_DIR = modules
-SRC_DIR = src
-KERNEL = kernel8.img
-STD_MODULES = test test2
-MULTI_MODULES = test3
+SRC_DIR = src/bootloader
+IMAGE = kernel8.img
+BOOT_MODULES = drivers/uart loader arm/irq drivers/mbox
+MODULES = testing/test
 
 # Phony targets
 
 .PHONY: all clean rebuild run debug uart0 toolchain
 
-all: $(KERNEL)
+all: $(IMAGE)
 
 clean:
 	rm -rf $(BUILD_DIR) *.img
@@ -36,6 +36,8 @@ toolchain: toolchain/Dockerfile
 
 # Module file and recipe
 
+include $(MODULES_DIR)/Makefile
+
 $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko): %.ko: %.mk
 
 $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/%/Makefile
@@ -52,10 +54,12 @@ C_FILES = $(shell find $(SRC_DIR) -name '*.c')
 ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
 OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
 
-$(KERNEL): $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o
-	$(CC) $(CFLAGS) -o $(BUILD_DIR)/kernel8.elf -T $^ -lbfd -lz -liberty -lsframe
-	$(ARMGNU)-objcopy $(BUILD_DIR)/kernel8.elf -O binary kernel8.img
+$(BUILD_DIR)/kernel8.elf: $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
+	$(CC) $(CFLAGS) -o $@ -T $^ -lbfd -lz -liberty -lsframe
+
+$(IMAGE): $(BUILD_DIR)/kernel8.elf
 #	$(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
+	$(ARMGNU)-objcopy $< -O binary $@
 
 # Object files
 
@@ -69,7 +73,6 @@ $(BUILD_DIR)/%.S.o: %.S
 
 # Other Makefiles
 
-include $(MODULES_DIR)/Makefile
 ifneq (clean,$(MAKECMDGOALS))
 -include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)

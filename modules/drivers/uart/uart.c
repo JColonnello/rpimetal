@@ -23,9 +23,9 @@
  *
  */
 
-#include "gpio.h"
-#include "mbox.h"
-#include "peripherals/uart.h"
+#include <drivers/gpio.h>
+#include <drivers/mbox.h>
+#include <drivers/uart.h>
 #include <stdint.h>
 #include <stddef.h>
 
