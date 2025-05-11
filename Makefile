@@ -44,7 +44,7 @@ $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko): %.ko: %.mk
 
 $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/%/Makefile
 	@mkdir -p $(@D)
-	ln $< $@
+	ln -f $< $@
 
 $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
 	@mkdir -p $(@D)
@@ -57,7 +57,7 @@ ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
 OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/kernel8.elf: $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
-	$(CC) $(CFLAGS) -o $@ -T $^ -lbfd -lz -liberty -lsframe
+	$(CC) $(CFLAGS) -o $@ -T $^
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
 #	$(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
