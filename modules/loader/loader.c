@@ -145,6 +145,8 @@ typedef struct __attribute__((packed)) tls_data
 	uint64_t data[];
 } tls_data;
 
+_Static_assert(sizeof(tls_data) == 16, "TLS control block is not 16 bytes long");
+
 typedef struct tls_info
 {
 	unsigned int offset;
@@ -160,7 +162,7 @@ tls_info *tls_schema;
 static ssize_t register_tls_segment(size_t size, size_t alignment, const assembly_data *assembly)
 {
 	tls_info *tls_tmp_schema = tls_schema;
-	size_t tls_tmp_template_size = tls_schema != NULL ? tls_schema->offset + tls_schema->size : 0;
+	size_t tls_tmp_template_size = tls_schema != NULL ? tls_schema->offset + tls_schema->size : sizeof(tls_data);
 
 	tls_info *tmpi;
 	ssize_t offset = tls_tmp_template_size;
@@ -196,7 +198,7 @@ static ssize_t register_tls_segment(size_t size, size_t alignment, const assembl
 
 void *loader_tls_ptr(const tls_data *tcb, ssize_t offset)
 {
-	return (void*)tcb + sizeof(*tcb) + offset;
+	return (void*)tcb + offset;
 }
 
 static void loader_initial_tls(const void * restrict data, size_t size, size_t alignment)
