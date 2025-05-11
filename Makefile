@@ -4,8 +4,10 @@ BUILD_DIR = build
 MODULES_DIR = modules
 SRC_DIR = src/bootloader
 IMAGE = kernel8.img
+KERNEL = kernel
 BOOT_MODULES = drivers/uart loader arm/irq drivers/mbox
 MODULES = testing/test
+MODULES += $(KERNEL)
 
 # Phony targets
 
