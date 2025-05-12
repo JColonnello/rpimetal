@@ -3,9 +3,10 @@ ARMGNU ?= $(TOOLCHAIN)/aarch64-none-elf
 CC=$(ARMGNU)-gcc
 LD=$(ARMGNU)-ld
 AS=$(ARMGNU)-gcc
+AR=$(ARMGNU)-ar
 
 INC_DIRS = include
 override INC_FLAGS += $(addprefix -I,$(INC_DIRS))
 override LDFLAGS += -L/opt/aarch64-none-elf/lib/gcc/aarch64-none-elf/14.2.0/ -L/opt/aarch64-none-elf/aarch64-none-elf/lib/
-override CFLAGS += -Wall -Wno-unknown-pragmas -std=gnu11 -g -mtp=el1
+override CFLAGS += -Wall -Wno-unknown-pragmas -std=gnu11 -g -mtp=el1 -nolibc
 override ASFLAGS += -Wall -g

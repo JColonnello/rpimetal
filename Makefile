@@ -5,8 +5,8 @@ MODULES_DIR = modules
 SRC_DIR = src/bootloader
 IMAGE = kernel8.img
 KERNEL = kernel
-BOOT_MODULES = drivers/uart loader arm/irq drivers/mbox
-MODULES = testing/test
+BOOT_MODULES = drivers/uart loader arm/irq drivers/mbox libc/libc
+MODULES = testing/test libc/libc
 MODULES += $(KERNEL)
 
 # Phony targets
@@ -57,7 +57,7 @@ ASM_FILES = $(shell find $(SRC_DIR) -name '*.S')
 OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/kernel8.elf: $(SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
-	$(CC) $(CFLAGS) -o $@ -T $^
+	$(CC) $(CFLAGS) -Wl,--unresolved-symbols=ignore-all -o $@ -T $^
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
 #	$(LD) $(LDFLAGS) -T $(SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o

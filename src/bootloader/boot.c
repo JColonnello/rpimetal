@@ -8,6 +8,7 @@
 #include <drivers/timer.h>
 #include "loader.h"
 
+FILE_FROM_SYMBOL_FUNC_DECL(libc_libc);
 FILE_FROM_SYMBOL_FUNC_DECL(testing_test);
 FILE_FROM_SYMBOL_FUNC_DECL(kernel);
 
@@ -24,6 +25,7 @@ int main(void)
 	// r++;
 
 	loader_init();
+	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(libc_libc), "build/modules/libc/libc.ko");
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(kernel), "build/modules/kernel.ko");
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(testing_test), "build/modules/testing/test.ko");
 	loader_print_tls_layout(tls_schema);
