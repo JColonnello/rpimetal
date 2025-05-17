@@ -15,8 +15,9 @@ SECTIONS
 		*(.bss*) 
 		__bss_end__ = .;
 	}
-	_tcb = ALIGN(0x10);
-	. = . + 0x10;
+	. = ALIGN(0x10); /* Align the location counter before _tcb */
+	_tcb = .;        /* Assign _tcb to the aligned address */
+	. = . + 0x10;   /* Reserve 0x10 bytes after _tcb */
 	.tdata : 
 	{ 
 		*(.tdata) 
