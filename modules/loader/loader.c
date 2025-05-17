@@ -270,7 +270,7 @@ bfd_reloc_status_type aarch64_relocate(unsigned int r_type, bfd *input_bfd, asec
 	bfd_vma place;
 
 	howto = elf64_aarch64_howto_from_type(input_bfd, r_type);
-	place = (input_section->vma + input_section->output_offset + offset);
+	place = ((bfd_vma)input_section->userdata + input_section->output_offset + offset);
 
 	r_type = elf64_aarch64_bfd_reloc_from_type(input_bfd, r_type);
 	value += input_section->output_section->output_offset;
@@ -312,7 +312,7 @@ int loader_load_file(FILE *file, const char *filename)
 			// Set pointer to copy section contents to template
 			memory = loader_tls_ptr(tls_template, offset);
 			section->output_offset = offset;
-			section->vma = (bfd_vma)tls_template;
+			section->userdata = tls_template;
 		}
 		else
 		{
