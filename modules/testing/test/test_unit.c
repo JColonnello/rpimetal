@@ -1,5 +1,4 @@
 extern int callback(int);
-__attribute((tls_model("local-exec")))
 extern __thread int tls_int;
 __thread int module_data = 5, module_arr[4];
 
