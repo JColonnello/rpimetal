@@ -2,6 +2,9 @@
 //  change these a little bit for different behavior
 //
 ////////////////////////////////////////////////////////////////////////////////
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/reent.h>
 
 //// callbacks
 
@@ -43,9 +46,10 @@ int out[4];
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
 
-int *entrypoint(void (*test)(int, int*), int *module)
+int main()
 {
-	module_data_ptr = module;
-	test(in, out);
-	return out;
+	// module_data_ptr = module;
+	// test(in, out);
+	printf("out = { %d, %d, %d, %d }\n", out[0], out[1], out[2], out[3]);
+	printf("Done!\n");
 }
