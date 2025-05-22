@@ -18,7 +18,8 @@
 				"ms-vscode.makefile-tools",
 				"webfreak.debug",
 				"llvm-vs-code-extensions.vscode-clangd",
-				"ms-vscode.hexeditor"
+				"ms-vscode.hexeditor",
+				"wakatime.vscode-wakatime"
 			]
 		}
 	},
