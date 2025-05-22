@@ -37,7 +37,23 @@ typedef struct assembly_data
 	struct assembly_data *next;
 } assembly_data;
 
+typedef struct constructors_table
+{
+	void (**__register_frame_info) (void);
+	void (**__deregister_frame_info) (void);
+	void (**__preinit_array_start) (void);
+	void (**__preinit_array_end) (void);
+	size_t __preinit_array_max;
+	void (**__init_array_start) (void);
+	void (**__init_array_end) (void);
+	size_t __init_array_max;
+	void (**__fini_array_start) (void);
+	void (**__fini_array_end) (void);
+	size_t __fini_array_max;
+} constructors_table;
+
 static assembly_data *loaded_assemblies;
+static constructors_table *constructors;
 
 #define NAME_COMP(x,y) ((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) : strcmp((x)->name, (y)->name))
 #define COMP_DIRECT(comp,x,y) comp(&x,&y)
@@ -107,13 +123,30 @@ static void loader_initial_tls(const void * restrict data, size_t size, size_t a
 
 unsigned int loader_init()
 {
-	extern const void _tcb, __tbss_end__;
 	assembly_data *start = calloc(1, sizeof(assembly_data));
 	sglib_assembly_data_add(&loaded_assemblies, start);
-    loader_initial_tls(&_tcb + 0x10, &__tbss_end__ - &_tcb - 0x10, 0x10);
-    struct tls_data *tcb = loader_create_tcb();
 
-    loader_switch_tcb(tcb);
+	constructors = calloc(1, sizeof(constructors_table));
+	size_t starting_tructor_size = 10;
+	constructors->__preinit_array_end = constructors->__preinit_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__preinit_array_max = starting_tructor_size;
+	constructors->__init_array_end = constructors->__init_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__init_array_max = starting_tructor_size;
+	constructors->__fini_array_end = constructors->__fini_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__fini_array_max = starting_tructor_size;
+	
+	symbol_data constructor_symbols[] = 
+	{
+		{ .name = "__register_frame_info", .address = &constructors->__register_frame_info },
+		{ .name = "__deregister_frame_info", .address = &constructors->__deregister_frame_info },
+		{ .name = "__preinit_array_start", .address = &constructors->__preinit_array_start },
+		{ .name = "__preinit_array_end", .address = &constructors->__preinit_array_end },
+		{ .name = "__init_array_start", .address = &constructors->__init_array_start },
+		{ .name = "__init_array_end", .address = &constructors->__init_array_end },
+		{ .name = "__fini_array_start", .address = &constructors->__fini_array_start },
+		{ .name = "__fini_array_end", .address = &constructors->__fini_array_end },
+	};
+	loader_add_starting_symbols(sizeof(constructor_symbols)/sizeof(*constructor_symbols), constructor_symbols);
 
 	// init libbfd
 	return bfd_init();
@@ -133,6 +166,56 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 	memcpy(&match->symbols[count], symbols, sizeof(symbol_data) * n);
 	match->symbol_count = count + n;
 }
+
+#pragma region Constructor & Destructor
+
+#define CHECK_TRUCTOR_SECTION_DECL(type) \
+bool loader_locate_special_section_##type(asection *section, void **location) { \
+	if(strcmp(section->name, "."#type"_array") == 0)	\
+	{	\
+		size_t n = section->size / sizeof(void*);		\
+		size_t count = constructors->__##type##_array_end - constructors->__##type##_array_start;	\
+		size_t max = constructors->__##type##_array_max;	\
+		\
+		if(count + n <= max)	\
+		{	\
+			*location = &constructors->__##type##_array_start[count];	\
+			constructors->__##type##_array_end += n;	\
+		}	\
+		else	\
+		{	\
+			/*TODO: Handle expanding vector*/  \
+			*location = NULL;	\
+		}	\
+		return true;	\
+	} \
+	return false;	\
+}
+
+#define CHECK_TRUCTOR_SECTION_CALL(type) loader_locate_special_section_##type
+
+CHECK_TRUCTOR_SECTION_DECL(preinit)
+CHECK_TRUCTOR_SECTION_DECL(init)
+CHECK_TRUCTOR_SECTION_DECL(fini)
+
+void *loader_locate_special_section (asection *section)
+{
+	void *location;
+
+	if(CHECK_TRUCTOR_SECTION_CALL(init)(section, &location))
+		return location;
+	if(CHECK_TRUCTOR_SECTION_CALL(fini)(section, &location))
+		return location;
+	if(CHECK_TRUCTOR_SECTION_CALL(preinit)(section, &location))
+		return location;
+
+	return NULL;
+}
+
+#undef CHECK_TRUCTOR_SECTION_DECL
+#undef CHECK_TRUCTOR_SECTION_CALL
+
+#pragma endregion
 
 #pragma region TLS
 
@@ -314,6 +397,8 @@ int loader_load_file(FILE *file, const char *filename)
 			section->output_offset = offset;
 			section->userdata = tls_template;
 		}
+		else if ((memory = loader_locate_special_section(section)) != NULL)
+			section->output_offset = (bfd_vma)memory;
 		else
 		{
 			memory = aligned_alloc(0x1000, section->size);
