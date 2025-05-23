@@ -1,5 +1,6 @@
 BasedOnStyle: Microsoft
 UseTab: ForIndentation
+AlignEscapedNewlines: DontAlign
 IndentWidth: 4
 TabWidth: 4
 # AlignConsecutiveTableGenDefinitionColons:

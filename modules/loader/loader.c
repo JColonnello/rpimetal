@@ -113,14 +113,6 @@ void *loader_search_symbol(const char *name)
 		return NULL;
 }
 
-// Returns the first number greater or equal than "value" which is a multiple of "size"
-// static size_t _round_up_to_multiple_of(size_t value, size_t size)
-// {
-// 	size_t r = value % size;
-// 	return r == 0 ? value : value - r + size;
-// }
-static void loader_initial_tls(const void * restrict data, size_t size, size_t alignment);
-
 unsigned int loader_init()
 {
 	assembly_data *start = calloc(1, sizeof(assembly_data));
@@ -165,6 +157,7 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 	match->symbols = reallocarray(match->symbols, count + n, sizeof(symbol_data));
 	memcpy(&match->symbols[count], symbols, sizeof(symbol_data) * n);
 	match->symbol_count = count + n;
+	SGLIB_ARRAY_SINGLE_QUICK_SORT(symbol_data, match->symbols, match->symbol_count, NAME_COMP_DIRECT);
 }
 
 #pragma region Constructor & Destructor
@@ -284,21 +277,14 @@ void *loader_tls_ptr(const tls_data *tcb, ssize_t offset)
 	return (void*)tcb + offset;
 }
 
-static void loader_initial_tls(const void * restrict data, size_t size, size_t alignment)
-{
-	ssize_t offset = register_tls_segment(size, alignment, loaded_assemblies);
-	void * restrict ptr = loader_tls_ptr(tls_template, offset);
-	memcpy(ptr, data, size);
-}
-
 void *local_tls_offset(void *var);
 
 tls_data *loader_create_tcb()
 {
 	if(tls_schema == NULL)
 		return NULL;
-	size_t size = tls_schema->offset + tls_schema->size;
-	tls_data *tcb = malloc(size + sizeof(tls_data));
+	size_t size = tls_schema->offset + tls_schema->size + sizeof(tls_data);
+	tls_data *tcb = malloc(size);
 	memcpy(tcb, tls_template, size);
 	return tcb;
 }
@@ -353,11 +339,16 @@ bfd_reloc_status_type aarch64_relocate(unsigned int r_type, bfd *input_bfd, asec
 	bfd_vma place;
 
 	howto = elf64_aarch64_howto_from_type(input_bfd, r_type);
-	place = ((bfd_vma)input_section->userdata + input_section->output_offset + offset);
+	place = input_section->output_offset + offset;
+	if(input_section->userdata != NULL)
+		place += *(bfd_vma*)input_section->userdata;
 
 	r_type = elf64_aarch64_bfd_reloc_from_type(input_bfd, r_type);
 	value += input_section->output_section->output_offset;
 	value = _bfd_aarch64_elf_resolve_relocation(input_bfd, r_type, place, value, addend, false);
+	// R_AARCH64_ABS64, R_AARCH64_ABS32, R_AARCH64_ABS16
+	if(howto->type >= 257 && howto->type <= 259)
+		value += addend;
 	return _bfd_aarch64_elf_put_addend(input_bfd, (bfd_byte *)place, r_type, howto, value);
 }
 
@@ -395,7 +386,7 @@ int loader_load_file(FILE *file, const char *filename)
 			// Set pointer to copy section contents to template
 			memory = loader_tls_ptr(tls_template, offset);
 			section->output_offset = offset;
-			section->userdata = tls_template;
+			section->userdata = &tls_template;
 		}
 		else if ((memory = loader_locate_special_section(section)) != NULL)
 			section->output_offset = (bfd_vma)memory;
