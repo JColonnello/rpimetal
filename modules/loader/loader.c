@@ -404,7 +404,7 @@ int loader_load_file(FILE *file, const char *filename)
 			memset(memory, 0, section->size);
 
 		if(strcmp(section->name, ".text") == 0)
-			printf("add-symbol-file %s 0x%08lx", filename, section->output_offset);
+			printf("-exec add-symbol-file %s 0x%08lx", filename, section->output_offset);
 		else
 			printf(" -s %s 0x%08lx", section->name, section->output_offset);
 
@@ -427,6 +427,9 @@ int loader_load_file(FILE *file, const char *filename)
 	int symcount = bfd_canonicalize_symtab(abfd, symbols);
 	symbol_data *symbols_simple = malloc(sizeof(symbol_data) * symcount);
 	size_t symbols_simple_count = 0;
+	// static ulong undefined_ptr = 0x1000;
+	static ulong undefined_ptr = 0;
+	const flagword undefined_flag = 1 << 25;
 	for (int i = 0; i < symcount; i++)
 	{
 		asymbol *symbol = symbols[i];
@@ -437,7 +440,12 @@ int loader_load_file(FILE *file, const char *filename)
 			if(ref != NULL)
 				symbol->value = (symvalue)ref->address;
 			else
-				fprintf(stderr, "Can't find undefined symbol: %s\n", symbol->name);
+			{
+				symbol->value = undefined_ptr;
+				undefined_ptr += 8;
+				symbol->flags |= undefined_flag;
+				fprintf(stderr, "Undefined symbol `%s' pointed to 0x%04lx\n", symbol->name, symbol->value);
+			}
 
 		}
 		else if(symbol->flags & BSF_GLOBAL)
@@ -470,18 +478,19 @@ int loader_load_file(FILE *file, const char *filename)
 		{
 			arelent *reloc = relpp[i];
 			asymbol *symbol = *reloc->sym_ptr_ptr;
-			if(!bfd_is_und_section(symbol->section) || symbol->value != 0)
-			{
-				section->output_section = symbol->section;
-				printf("Relocating symbol (%s) to section (%s) at 0x%08lx + 0x%08lx = 0x%08lx\n", symbol->name, section->output_section->name, section->output_section->output_offset, symbol->value, section->output_section->output_offset + symbol->value);
-				bfd_reloc_status_type status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, reloc->addend);
-				if(status == bfd_reloc_dangerous)
-					printf("Dangerous relocation\n");
-				else if(status != bfd_reloc_ok && status != bfd_reloc_undefined)
-					printf("Failed relocation. Error %d\n", status);
-			}
+			section->output_section = symbol->section;
+			// printf("Relocating symbol (%s) to section (%s) at 0x%08lx + 0x%08lx = 0x%08lx\n", symbol->name, section->output_section->name, section->output_section->output_offset, symbol->value, section->output_section->output_offset + symbol->value);
+			bfd_reloc_status_type status;
+			if((symbol->flags & undefined_flag) && (symbol->flags & BSF_WEAK))
+				continue;
+			if(symbol->flags & undefined_flag)
+				status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, 0);
 			else
-				printf("Symbol (%s) is undefined\n", symbol->name);
+				status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, reloc->addend);
+			if(status == bfd_reloc_dangerous)
+				printf("Dangerous relocation\n");
+			else if(status != bfd_reloc_ok && status != bfd_reloc_undefined)
+				printf("Failed relocation. Error %d\n", status);
 		}
 		free(relpp);
 	}
