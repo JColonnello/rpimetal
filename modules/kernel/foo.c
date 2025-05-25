@@ -2,6 +2,7 @@
 //  change these a little bit for different behavior
 //
 ////////////////////////////////////////////////////////////////////////////////
+#include <boot/custom.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/reent.h>
@@ -46,10 +47,13 @@ int out[4];
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
 
-int main()
+int kernel_start(struct boot_info *info, union boot_userdata userdata)
 {
-	// module_data_ptr = module;
-	// test(in, out);
+	struct boot_customdata *data = userdata.custom;
+	module_data_ptr = data->module_data;
+	data->test_function(in, out);
 	printf("out = { %d, %d, %d, %d }\n", out[0], out[1], out[2], out[3]);
 	printf("Done!\n");
+
+	return 0;
 }
