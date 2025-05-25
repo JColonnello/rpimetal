@@ -44,7 +44,13 @@
                     "text": "-gdb-set output-radix 16",
                     "ignoreFailures": false
                 }
-            ]
+            ],
+			"sourceFileMap": {
+                "${workspaceFolder}": {
+                    "editorPath": "${workspaceFolder}",
+                    "useForBreakpoints": "true"
+                }
+            },
         },
     ]
 }
