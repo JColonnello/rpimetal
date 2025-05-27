@@ -26,7 +26,7 @@ void _init(void)
 }
 
 /* Iterate over all the init routines.  */
-weak void __libc_init_array(void) 
+void libc_init_array(void) 
 {
 	size_t count;
 	size_t i;

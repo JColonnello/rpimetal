@@ -24,7 +24,7 @@ void _fini(void)
 }
 
 /* Run all the cleanup routines.  */
-weak void __libc_fini_array(void)
+void libc_fini_array(void)
 {
 	size_t count;
 	size_t i;

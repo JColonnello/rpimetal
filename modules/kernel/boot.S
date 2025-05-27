@@ -10,17 +10,17 @@ _start:
 	mov	x29, 0
 	stp	x29, x29, [sp, #-16]!
 	mov	x29, sp
+	stp x0, x1, [sp, #-16]!
 	
 	// Setup desctructors to be called at exit
-	mov x19, x0
-	adr x0, __libc_fini_array
+	adr x0, libc_fini_array
 	bl atexit
 
 	// Call constructors
-	bl __libc_init_array
+	bl libc_init_array
 
 	// Call main and exit with returned status code
-	mov x0, x19
+	ldp x0, x1, [sp], #16
 	bl kernel_start
 	bl exit
 
