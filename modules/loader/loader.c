@@ -403,11 +403,6 @@ int loader_load_file(FILE *file, const char *filename)
 		else
 			memset(memory, 0, section->size);
 
-		if(strcmp(section->name, ".text") == 0)
-			printf("-exec add-symbol-file %s 0x%08lx", filename, section->output_offset);
-		else
-			printf(" -s %s 0x%08lx", section->name, section->output_offset);
-
 		section_data *sec = malloc(sizeof(section_data));
 		*sec = (section_data)
 		{
