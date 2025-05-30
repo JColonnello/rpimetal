@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/reent.h>
+#include "stdlib.h"
 
 //// callbacks
 
@@ -47,11 +48,20 @@ int out[4];
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
 
+__attribute((destructor))
+static void print_exit()
+{
+	printf("Exitting kernel\n");
+}
+
 int kernel_start(struct boot_info *info, union boot_userdata userdata)
 {
 	struct boot_customdata *data = userdata.custom;
+	stdlib_set_mem_limits(info->memory_start, info->memory_end);
 	module_data_ptr = data->module_data;
-	data->test_function(in, out);
+	void (*test)(int,int*) = data->test_function;
+	
+	test(in, out);
 	printf("out = { %d, %d, %d, %d }\n", out[0], out[1], out[2], out[3]);
 	printf("Done!\n");
 
