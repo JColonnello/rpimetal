@@ -6,7 +6,7 @@ IMAGE = kernel8.img
 BOOT_SRC_DIR = src/bootloader
 KERNEL = kernel
 BOOT_MODULES = drivers/uart loader arm/irq drivers/mbox libc/libc
-MODULES = testing/test libc/libc
+MODULES = testing/test
 MODULES += $(KERNEL)
 
 # Phony targets

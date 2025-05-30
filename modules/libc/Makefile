@@ -1,5 +1,6 @@
 _OUTPUT := $(BUILD_DIR)/$(MODULES_DIR)/libc
 _LIBC := /opt/aarch64-none-elf/aarch64-none-elf/lib/libc.a
+_LIBGCC := /opt/aarch64-none-elf/lib/gcc/aarch64-none-elf/14.2.0/libgcc.a
 _OBJS := $(addprefix $(_OUTPUT)/, $(shell $(AR) t $(_LIBC)))
 
 $(_OUTPUT)/libc_a-%.o $(_OUTPUT)/libm_a-%.o:
@@ -12,6 +13,7 @@ $(_OUTPUT)/libc_a-%.o $(_OUTPUT)/libm_a-%.o:
 # $(_OUTPUT)/printf.ko: $(filter $(_OUTPUT)/%printf.o $(_OUTPUT)/%print_r.o, $(_OBJS))
 
 $(_OUTPUT)/libc.ko: $(_LIBC)
+$(_OUTPUT)/libgcc.ko: $(_LIBGCC)
 
 $(_OUTPUT)/%.ko:
 	@mkdir -p $(dir $@)
