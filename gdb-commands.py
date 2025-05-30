@@ -11,13 +11,24 @@ class AddAssemblySymbols(gdb.Command):
 		loaded_assemblies_sym = "loaded_assemblies"
 
 		try:
+			# Parse arguments to detect -b flag
+			parser = argparse.ArgumentParser()
+			parser.add_argument("-b", "--bootloader", action="store_true")
+			args = parser.parse_args(arg.split())
+
 			loaded_assemblies = gdb.parse_and_eval(loaded_assemblies_sym)
-			print("Resetting symbol table...")
-			gdb.execute("symbol-file", to_string=False)
-			print("Adding bootloader symbols...")
-			gdb.execute("file build/kernel8.elf", to_string=False)
+			if args.bootloader:
+				print("Resetting symbol table (and reloading bootloader ELF)...")
+				gdb.execute("file build/kernel8.elf", to_string=False)
+			else:
+				print("Resetting symbol table...")
+				gdb.execute("file", to_string=False)
 		except gdb.error:
 			print(f"Symbol '{loaded_assemblies_sym}' not found.")
+			return
+		except Exception as e:
+			print(e)
+		except SystemExit:
 			return
 
 		node = loaded_assemblies

@@ -43,10 +43,12 @@
 					"description": "Output values as hex",
 					"text": "-gdb-set output-radix 16",
 					"ignoreFailures": false
-				},
+				}
+			],
+			"postRemoteConnectCommands":[
 				{
 					"description": "Add command file (source)",
-					"text": "source ${workspaceFolder}/gdb-commands.py",
+					"text": "source ${workspaceFolder}/.gdbinit",
 					"ignoreFailures": false
 				}
 			],

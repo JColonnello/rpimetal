@@ -1,7 +1,7 @@
-file build/kernel8.elf
-set mi-async
-break undef_func
-break *0x200
-#target remote :1234
-tui layout split
-tui focus cmd
+source ./gdb-commands.py
+break src/bootloader/boot.c:71
+commands
+silent
+add-assembly-symbols
+cont
+end
