@@ -1,0 +1,71 @@
+import gdb
+import argparse
+
+class AddAssemblySymbols(gdb.Command):
+	"""Explore loaded_assemblies linked list and add ELF section symbols."""
+
+	def __init__(self):
+		super(AddAssemblySymbols, self).__init__("add-assembly-symbols", gdb.COMMAND_USER)
+
+	def invoke(self, arg, from_tty):
+		loaded_assemblies_sym = "loaded_assemblies"
+
+		try:
+			loaded_assemblies = gdb.parse_and_eval(loaded_assemblies_sym)
+			print("Resetting symbol table...")
+			gdb.execute("symbol-file", to_string=False)
+			print("Adding bootloader symbols...")
+			gdb.execute("file build/kernel8.elf", to_string=False)
+		except gdb.error:
+			print(f"Symbol '{loaded_assemblies_sym}' not found.")
+			return
+
+		node = loaded_assemblies
+		idx = 0
+		while node and int(node):
+			try:
+
+				# Dereference the node to get the assembly structure
+				assembly = node.dereference()
+				if not assembly['name']:
+					print(f"Assembly {idx}: No name found, skipping.")
+					node = assembly['next']
+					idx += 1
+					continue
+
+				# Extract the ELF path and section information
+				elf_path = str(assembly['name'].string())
+				sections = assembly['sections']
+				section_node = sections
+				section_addrs = {}
+				# Walk section_data linked list
+				while section_node and int(section_node):
+					section = section_node.dereference()
+					name = str(section['name'].string())
+					addr = int(section['address'])
+					section_addrs[name] = addr
+					section_node = section['next']
+
+				if '.text' not in section_addrs:
+					print(f"Assembly {idx}: {elf_path} has no .text section, skipping.")
+					node = assembly['next']
+					idx += 1
+					continue
+
+				cmd = f"add-symbol-file {elf_path} {section_addrs['.text']}"
+				for name, addr in section_addrs.items():
+					if name == '.text':
+						continue
+					cmd += f" -s {name} {addr}"
+
+				print(f"Assembly {idx}: {elf_path}")
+				print(f"Running: {cmd}")
+				gdb.execute(cmd, to_string=False)
+
+				node = assembly['next']
+				idx += 1
+			except Exception as e:
+				print(f"Error processing assembly: {e}")
+				break
+
+AddAssemblySymbols()

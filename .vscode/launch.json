@@ -1,56 +1,61 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "gdb",
-            "request": "attach",
-            "name": "Native debug",
-            "executable": "./build/kernel8.elf",
-            "target": ":1234",
-            "remote": true,
-            "cwd": "${workspaceRoot}",
-            "gdbpath": "aarch64-none-elf-gdb",
-            "valuesFormatting": "prettyPrinters",
-            "autorun": [
-                "set output-radix 16"
-            ]
-        },
-        {
-            "name": "(C++) Launch",
-            "type": "cppdbg",
-            "request": "launch",
-            "miDebuggerServerAddress": ":1234",
-            "miDebuggerPath": "aarch64-none-elf-gdb",
-            "program": "./build/kernel8.elf",
-            "cwd": "${workspaceFolder}",
-            "MIMode": "gdb",
-            // "preLaunchTask": "debug",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": false
-                },
-                {
-                    "description": "Set Disassembly Flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                },
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "gdb",
+			"request": "attach",
+			"name": "Native debug",
+			"executable": "./build/kernel8.elf",
+			"target": ":1234",
+			"remote": true,
+			"cwd": "${workspaceRoot}",
+			"gdbpath": "aarch64-none-elf-gdb",
+			"valuesFormatting": "prettyPrinters",
+			"autorun": [
+				"set output-radix 16"
+			]
+		},
+		{
+			"name": "(C++) Launch",
+			"type": "cppdbg",
+			"request": "launch",
+			"miDebuggerServerAddress": ":1234",
+			"miDebuggerPath": "aarch64-none-elf-gdb",
+			"program": "./build/kernel8.elf",
+			"cwd": "${workspaceFolder}",
+			"MIMode": "gdb",
+			// "preLaunchTask": "debug",
+			"setupCommands": [
 				{
-                    "description": "Output values as hex",
-                    "text": "-gdb-set output-radix 16",
-                    "ignoreFailures": false
-                }
-            ],
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": false
+				},
+				{
+					"description": "Set Disassembly Flavor to Intel",
+					"text": "-gdb-set disassembly-flavor intel",
+					"ignoreFailures": true
+				},
+				{
+					"description": "Output values as hex",
+					"text": "-gdb-set output-radix 16",
+					"ignoreFailures": false
+				},
+				{
+					"description": "Add command file (source)",
+					"text": "source ${workspaceFolder}/gdb-commands.py",
+					"ignoreFailures": false
+				}
+			],
 			"sourceFileMap": {
-                "${workspaceFolder}": {
-                    "editorPath": "${workspaceFolder}",
-                    "useForBreakpoints": "true"
-                }
-            },
-        },
-    ]
+				"${workspaceFolder}": {
+					"editorPath": "${workspaceFolder}",
+					"useForBreakpoints": "true"
+				}
+			},
+		},
+	]
 }
