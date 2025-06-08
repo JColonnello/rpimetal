@@ -2,10 +2,22 @@
 #include <stdio.h>
 #include "entry.h"
 #include <drivers/irq.h>
+#include <arm/irq.h>
 // #include <drivers/timer.h>
 #include <drivers/uart.h>
 #include <drivers/mbox.h>
 #include <stdint.h>
+#include <attrib.h>
+
+extern const void vectors;
+
+constructor void irq_vector_init()
+{
+	// Set the vector base address to the start of the IRQ vector table
+	asm volatile("msr vbar_el1, %0" : : "r"(&vectors));
+	// Enable IRQs in the CPU
+	enable_irq();
+}
 
 const char *entry_error_messages[] = {
 	"SYNC_INVALID_EL1t",
@@ -29,16 +41,18 @@ const char *entry_error_messages[] = {
 	"ERROR_INVALID_EL0_32"	
 };
 
-void enable_interrupt_controller()
+constructor void enable_interrupt_controller()
 {
 	// Enable IRQ Core 0 - Pag. 13 BCM2836_ARM-local_peripherals
 	// put32(CORE0_INT_CTR, (1 << 1));
 	// Enable UART interrupt
-	put32(ENABLE_IRQS_2, 1<<25);
+	mreg32(ENABLE_IRQS_2) |= 1<<25;
 	// Enable mailbox interrupt
-	put32(ENABLE_BASIC_IRQS, 1<<1);
+	mreg32(ENABLE_BASIC_IRQS) |= 1<<1;
 	mbox_irq_init();
 	// printf("IRQS: %x\n", *(uint32_t*)ENABLE_IRQS_2);
+
+	enable_irq();
 }
 
 void show_invalid_entry_message(int type, unsigned long esr, unsigned long address)
@@ -66,7 +80,7 @@ void handle_gpu_irq(unsigned irq)
 
 void handle_irq(void)
 {
-	unsigned int irq = get32(CORE0_INT_SOURCE);
+	unsigned int irq = mreg32(CORE0_INT_SOURCE);
 
 	for(unsigned handled = 1; handled; irq &= ~handled)
 	{
@@ -76,7 +90,7 @@ void handle_irq(void)
 			// handle_timer_irq();
 		}
 		else if((handled = irq & 1<<8))
-			handle_gpu_irq(get32(IRQ_BASIC_PENDING));
+			handle_gpu_irq(mreg32(IRQ_BASIC_PENDING));
 	}
 	if(irq)
 		printf("Unknown pending irq: %x\n", irq);

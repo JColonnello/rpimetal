@@ -5,6 +5,24 @@ SECTIONS
     . = 0x80000;
 	__stack = .;
 	.text.boot : { *(.text.boot) }
+	.preinit_array : 
+	{
+		__preinit_array_start = .;
+		*(.preinit_array) 
+		__preinit_array_end = .;
+	}
+	.init_array : 
+	{
+		__init_array_start = .;
+		*(.init_array) 
+		__init_array_end = .;
+	}
+	.fini_array : 
+	{
+		__fini_array_start = .;
+		*(.fini_array) 
+		__fini_array_end = .;
+	}
 	.text : { *(.text) }
 	.rodata : { *(.rodata) }
 	.data : { *(.data) }

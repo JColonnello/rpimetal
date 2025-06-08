@@ -24,16 +24,6 @@ union boot_userdata boot_userdata;
 
 int main(void)
 {
-	irq_vector_init();
-	// timer_init();
-	enable_interrupt_controller();
-	enable_irq();
-	uart_init();
-
-	// Exception test
-    // unsigned int r=*((volatile unsigned int*)0xFFFFFFFFFF000000);
-	// r++;
-
 	symbol_data symbols[] = 
 	{
 		{ .name = "__stack", .address = (void*)0x80000 },

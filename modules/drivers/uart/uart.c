@@ -28,6 +28,7 @@
 #include <drivers/uart.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <attrib.h>
 
 /* PL011 UART registers */
 #define UART0_DR        ((volatile uint32_t*)(MMIO_BASE+0x00201000))
@@ -104,7 +105,7 @@ uint32_t nLCRH = LCRH_FEN_MASK;
 /**
  * Set baud rate and characteristics (115200 8N1) and map to GPIO
  */
-void uart_init()
+constructor void uart_init()
 {
     register unsigned int r;
 

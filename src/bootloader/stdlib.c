@@ -5,15 +5,11 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <unistd.h>
-
-#define stub(func) void func(void) { \
-    undef_func(#func); \
-    proc_hang(); \
-}
+#include <attrib.h>
 
 extern const void __end;
 static void* curr_break = (void*)&__end;
-__attribute__((noreturn)) extern void proc_hang();
+noreturn extern void proc_hang();
 
 void *_sbrk(intptr_t increment)
 {
