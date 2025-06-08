@@ -8,6 +8,7 @@ BinPackParameters: false
 AlignAfterOpenBracket: BlockIndent
 BreakBeforeInlineASMColon: OnlyMultiline
 BreakAfterAttributes: Leave
+BreakBeforeBraces: Allman
 # AlignConsecutiveTableGenDefinitionColons:
 #   Enabled: true
 #   AcrossEmptyLines: true
