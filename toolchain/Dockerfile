@@ -1,4 +1,4 @@
-FROM debian AS base
+FROM debian:trixie AS base
 RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -72,7 +72,7 @@ rm -rf /build
 FROM base AS toolchain
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.11 locales
+apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password
