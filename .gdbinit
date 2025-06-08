@@ -1,5 +1,5 @@
 source ./gdb-commands.py
-break src/bootloader/boot.c:71
+break kernel_jump
 commands
 silent
 add-assembly-symbols

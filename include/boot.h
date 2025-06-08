@@ -3,11 +3,12 @@
 // Struct containing boot info for the kernel
 struct boot_info
 {
+	void *boot_memory_end;
 	void *memory_start;
 	void *memory_end;
 };
 
-union boot_userdata 
+union boot_userdata
 {
 	struct boot_customdata *custom;
 	void *ptr;

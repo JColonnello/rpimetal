@@ -11,7 +11,7 @@ MODULES += $(KERNEL)
 
 # Phony targets
 
-.PHONY: all clean rebuild run debug uart0 toolchain
+.PHONY: all clean rebuild run debug uart0 toolchain undef
 
 all: $(IMAGE)
 
@@ -31,6 +31,9 @@ uart0:
 
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
+
+undef: $(BUILD_DIR)/$(MODULES_DIR)/kernel.ko
+	@$(ARMGNU)-readelf -s $< | grep UND || true
 
 # Empty recipes
 
