@@ -1,3 +1,4 @@
+#include "attrib.h"
 #include <drivers/uart.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -69,14 +70,14 @@ int _close(int fd)
 	}
 }
 
-__attribute((noreturn))
-void halt()
+noreturn void halt()
 {
 	// Loop forever
 	for (;;)
 		// Wait for interrupt
 		asm volatile("wfi");
 }
+noreturn weak alias(halt, proc_hang);
 
 void _exit(int status)
 {

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <sys/reent.h>
 #include "stdlib.h"
+#include <attrib.h>
 
 //// callbacks
 
@@ -35,8 +36,7 @@ typedef void (*t_test_function)(int, int *);
 
 // test_unit.o is expected to call a function with the name "callback";
 // we will relocate those calls to the address in the my_callback variable
-__attribute__((alias("my_callback_03")))
-int callback(int);
+alias(my_callback_03, callback);
 // our job is to load the binary code of the object file into memory,
 // then find the address of the function with the following name
 const char *test_function_name = "test_function_02";
@@ -48,7 +48,7 @@ int out[4];
 // this pointer will eventually store the address of the function in test_unit.o with the name test_function_name
 t_test_function test_function;
 
-__attribute((destructor))
+destructor
 static void print_exit()
 {
 	printf("Exitting kernel\n");

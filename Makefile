@@ -5,7 +5,7 @@ MODULES_DIR = modules
 IMAGE = kernel8.img
 BOOT_SRC_DIR = src/bootloader
 KERNEL = kernel
-BOOT_MODULES = libc/libc loader arm/irq drivers/mbox drivers/uart
+BOOT_MODULES = arm/mmu-basic libc/libc loader arm/irq drivers/mbox drivers/uart
 MODULES = testing/test
 MODULES += $(KERNEL)
 

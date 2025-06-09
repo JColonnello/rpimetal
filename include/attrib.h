@@ -8,4 +8,5 @@
 
 #define weak __attribute__((weak))
 #define constructor __attribute__((constructor))
+#define destructor __attribute__((destructor))
 #define noreturn __attribute__((noreturn))

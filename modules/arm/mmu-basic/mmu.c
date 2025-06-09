@@ -1,4 +1,8 @@
-#include <stdbool.h>
+#include <arm/mmu-basic.h>
+#include <stddef.h>
+#include <attrib.h>
+#include <arm/sysregs.h>
+#include <stdint.h>
 
 typedef struct __attribute__((packed))
 {
@@ -73,7 +77,7 @@ __attribute__ ((aligned (64)))
 MMU_Table
 mmuTable0[2];
 
-void *plainMap()
+static void *plainMap()
 {
     // Setup first level 2 table for 0000 0000h - 3FFF FFFFh
     // First, normal memory: 0000 0000h - 3DFF FFFFh
@@ -161,4 +165,38 @@ void *plainMap()
     };
 
     return mmuTable0;
+}
+
+static void mmu_enable()
+{
+	uint64_t sctlr_el1;
+	// Get current SCTLR_EL1 value
+	asm volatile("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
+	sctlr_el1 |= SCTLR_VALUE_MMU_ENABLE;
+	asm volatile(
+		"msr mair_el1, %0\n"
+		"msr tcr_el1, %1\n"
+		"msr sctlr_el1, %2\n"
+		"isb\n"
+		: : "r"((uint64_t)MAIR_VALUE), "r"((uint64_t)TCR_VALUE), "r"(sctlr_el1)
+	);
+}
+
+bool mmu_is_enabled()
+{
+	uint64_t sctlr_el1;
+	asm volatile("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
+	return (sctlr_el1 & SCTLR_MMU_ENABLED) != 0;
+}
+
+constructor void mmu_init()
+{
+	static void *table;
+	if(table == NULL)
+	{
+		// We need to set up the translation table
+		table = plainMap();
+	}
+	mmu_set_t0el1(table);
+	mmu_enable();
 }
