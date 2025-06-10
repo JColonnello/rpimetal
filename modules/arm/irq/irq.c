@@ -11,7 +11,7 @@ extern const void vectors;
 constructor void irq_vector_init()
 {
 	// Set the vector base address to the start of the IRQ vector table
-	asm volatile("msr vbar_el1, %0" : : "r"(&vectors));
+	asm("msr vbar_el1, %0" : : "r"(&vectors));
 	// Enable IRQs in the CPU
 	enable_irq();
 }

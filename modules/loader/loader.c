@@ -296,11 +296,10 @@ tls_data *loader_create_tcb()
 
 struct tls_data *loader_switch_tcb(struct tls_data *tcb)
 {
-	struct tls_data *tmp = __builtin_thread_pointer();
+	struct tls_data *tmp;
+	asm("mrs %0, tpidr_el1" : "=r"(tmp));
 	if (tcb != NULL)
-	{
-		asm("msr tpidr_el1, %0" : : "r"(tcb));
-	}
+		asm("msr tpidr_el1, %0" : : "r"(tcb), "r"(tmp));
 	return tmp;
 }
 

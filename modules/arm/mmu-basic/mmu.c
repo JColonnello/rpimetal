@@ -63,8 +63,16 @@ typedef struct __attribute__((packed))
 	int : 1;
 } MMU_Page;
 
+typedef union
+{
+	MMU_Table table;
+	MMU_Block block;
+	MMU_Page page;
+} MMU_Entry;
+
 __attribute__((section(".bss.mmu"))) __attribute__((aligned(0x1000))) MMU_Page mmuTable1n[0x200];
-__attribute__((section(".bss.mmu"))) __attribute__((aligned(0x1000))) MMU_Block mmuTable1a[0x200], mmuTable1b[0x200];
+__attribute__((section(".bss.mmu"))) __attribute__((aligned(0x1000))) MMU_Entry mmuTable1a[0x200];
+__attribute__((section(".bss.mmu"))) __attribute__((aligned(0x1000))) MMU_Block mmuTable1b[0x200];
 __attribute__((section(".bss.mmu"))) __attribute__((aligned(64))) MMU_Table mmuTable0[2];
 
 static void *plainMap()
@@ -73,7 +81,7 @@ static void *plainMap()
 	// First, normal memory: 0000 0000h - 3DFF FFFFh
 	for (int i = 0; i < 0x200; i++)
 	{
-		mmuTable1a[i] = (MMU_Block){
+		mmuTable1a[i].block = (MMU_Block){
 			.oa = ((2 << 20) * i) >> 17,
 			.sh = 0b11,
 			.uxn = true,
@@ -87,11 +95,11 @@ static void *plainMap()
 	// Then, device memory: 3E00 0000h - 3FFF FFFFh
 	for (int i = 0x1f0; i < 0x200; i++)
 	{
-		mmuTable1a[i].attrIndx = 1;
-		mmuTable1a[i].pxn = true;
+		mmuTable1a[i].block.attrIndx = 1;
+		mmuTable1a[i].block.pxn = true;
 	}
 	// Point first 2MB block to a special table to block null references
-	((MMU_Table *)mmuTable1a)[0] = (MMU_Table){
+	mmuTable1a[0].table = (MMU_Table){
 		.nextLevel = ((unsigned long)&mmuTable1n) >> 12,
 		.format = 1,
 		.valid = 1,
@@ -155,20 +163,20 @@ static void mmu_enable()
 {
 	uint64_t sctlr_el1;
 	// Get current SCTLR_EL1 value
-	asm volatile("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
+	asm("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
 	sctlr_el1 |= SCTLR_VALUE_MMU_ENABLE;
-	asm volatile("msr mair_el1, %0\n"
-				 "msr tcr_el1, %1\n"
-				 "msr sctlr_el1, %2\n"
-				 "isb\n"
-				 :
-				 : "r"((uint64_t)MAIR_VALUE), "r"((uint64_t)TCR_VALUE), "r"(sctlr_el1));
+	asm("msr mair_el1, %0\n"
+		"msr tcr_el1, %1\n"
+		"msr sctlr_el1, %2\n"
+		"isb\n"
+		:
+		: "r"((uint64_t)MAIR_VALUE), "r"((uint64_t)TCR_VALUE), "r"(sctlr_el1));
 }
 
 bool mmu_is_enabled()
 {
 	uint64_t sctlr_el1;
-	asm volatile("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
+	asm("mrs %0, sctlr_el1" : "=r"(sctlr_el1));
 	return (sctlr_el1 & SCTLR_MMU_ENABLED) != 0;
 }
 

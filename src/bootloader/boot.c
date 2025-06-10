@@ -29,13 +29,14 @@ static void noreturn kernel_jump()
 {
 	//Inline asm equivalent to kernel_start(&boot_info, boot_userdata) without link
 	asm("mov x0, %0\n"
-		"mov x1, %1\n"
-		"mov x2, %2\n"
+		"ldr x1, %1\n"
+		"ldr x2, %2\n"
 		// Point LR to inside the start function to avoid GDB crash
 		"add x30, x2, #4\n"
 		"br x2\n"
 		:
-		: "r"(&boot_info), "r"(boot_userdata), "r"(kernel_start));
+		: "r"(&boot_info), "m"(boot_userdata), "m"(kernel_start)
+		: "x0", "x1", "x2", "x30");
 	__builtin_unreachable();
 }
 
