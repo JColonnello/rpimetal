@@ -10,6 +10,20 @@ class AddAssemblySymbols(gdb.Command):
 	def invoke(self, arg, from_tty):
 		loaded_assemblies_sym = "loaded_assemblies"
 
+		'''
+		# Save enabled breakpoint IDs
+		enabled_breakpoints = []
+		for bp in gdb.breakpoints():
+			if bp.enabled:
+				enabled_breakpoints.append(bp.number)
+		
+		# Print the IDs of enabled breakpoints
+		if enabled_breakpoints:
+			print(f"Enabled breakpoints: {', '.join(map(str, enabled_breakpoints))}")
+		else:
+			print("No enabled breakpoints found.")
+		'''
+
 		try:
 			# Parse arguments to detect -b flag
 			parser = argparse.ArgumentParser()
@@ -20,9 +34,6 @@ class AddAssemblySymbols(gdb.Command):
 			if args.bootloader:
 				print("Resetting symbol table (and reloading bootloader ELF)...")
 				gdb.execute("file build/kernel8.elf", to_string=False)
-			else:
-				print("Resetting symbol table...")
-				gdb.execute("file", to_string=False)
 		except gdb.error:
 			print(f"Symbol '{loaded_assemblies_sym}' not found.")
 			return
@@ -78,5 +89,18 @@ class AddAssemblySymbols(gdb.Command):
 			except Exception as e:
 				print(f"Error processing assembly: {e}")
 				break
+
+		'''
+		# # Disable all breakpoints
+		# gdb.execute("disable breakpoints", to_string=False)
+
+		# # Re-enable previously enabled breakpoints
+		# for bp_num in enabled_breakpoints:
+		# 	gdb.execute(f"enable {bp_num}", to_string=False)
+		'''
+
+		if not args.bootloader:
+			print("Resetting symbol table...")
+			gdb.execute("file -readnever build/kernel8.elf", to_string=False)
 
 AddAssemblySymbols()
