@@ -1,21 +1,21 @@
 #define PACKAGE "elfloader-module"
 #define PACKAGE_VERSION "0.1"
 
-#include <stddef.h>
-#include <stdint.h>
-#include <sys/_intsup.h>
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include "loader.h"
 #include <bfd.h>
 #include <fcntl.h>
+#include <malloc.h>
 #include <sglib.h>
-#include "loader.h"
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/_intsup.h>
+#include <unistd.h>
 
-#define PG(x)	     ((x) & ~ (bfd_vma) 0xfff)
-#define PG_OFFSET(x) ((x) &   (bfd_vma) 0xfff)
+#define PG(x) ((x) & ~(bfd_vma)0xfff)
+#define PG_OFFSET(x) ((x) & (bfd_vma)0xfff)
 
 #pragma region Type definitions
 
@@ -39,25 +39,27 @@ typedef struct assembly_data
 
 typedef struct constructors_table
 {
-	void (**__register_frame_info) (void);
-	void (**__deregister_frame_info) (void);
-	void (**__preinit_array_start) (void);
-	void (**__preinit_array_end) (void);
+	void (**__register_frame_info)(void);
+	void (**__deregister_frame_info)(void);
+	void (**__preinit_array_start)(void);
+	void (**__preinit_array_end)(void);
 	size_t __preinit_array_max;
-	void (**__init_array_start) (void);
-	void (**__init_array_end) (void);
+	void (**__init_array_start)(void);
+	void (**__init_array_end)(void);
 	size_t __init_array_max;
-	void (**__fini_array_start) (void);
-	void (**__fini_array_end) (void);
+	void (**__fini_array_start)(void);
+	void (**__fini_array_end)(void);
 	size_t __fini_array_max;
 } constructors_table;
 
 static assembly_data *loaded_assemblies;
 static constructors_table *constructors;
 
-#define NAME_COMP(x,y) ((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) : strcmp((x)->name, (y)->name))
-#define COMP_DIRECT(comp,x,y) comp(&x,&y)
-#define NAME_COMP_DIRECT(x,y) COMP_DIRECT(NAME_COMP, x, y)
+#define NAME_COMP(x, y) \
+	((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) \
+											: strcmp((x)->name, (y)->name))
+#define COMP_DIRECT(comp, x, y) comp(&x, &y)
+#define NAME_COMP_DIRECT(x, y) COMP_DIRECT(NAME_COMP, x, y)
 
 SGLIB_DEFINE_LIST_PROTOTYPES(assembly_data, NAME_COMP, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(assembly_data, NAME_COMP, next)
@@ -68,17 +70,18 @@ SGLIB_DEFINE_LIST_FUNCTIONS(section_data, NAME_COMP, next)
 
 static void free_assembly_data(assembly_data *assembly)
 {
-	free((void*)assembly->name);
-	
+	free((void *)assembly->name);
+
 	for (int i = 0; i < assembly->symbol_count; i++)
-		free((void*)assembly->symbols[i].name);
+		free((void *)assembly->symbols[i].name);
 	free(assembly->symbols);
-	
+
 	struct sglib_section_data_iterator it;
-	for(section_data *s = sglib_section_data_it_init(&it, assembly->sections); s != NULL; s = sglib_section_data_it_next(&it))
+	for (section_data *s = sglib_section_data_it_init(&it, assembly->sections); s != NULL;
+		 s = sglib_section_data_it_next(&it))
 	{
-		free((void*)s->name);
-		if(!s->tls)
+		free((void *)s->name);
+		if (!s->tls)
 			free(s->address);
 		free(s);
 	}
@@ -88,26 +91,29 @@ static void free_assembly_data(assembly_data *assembly)
 
 static const symbol_data *search_symbol(const char *name)
 {
-	#define SEARCH_FUNC(p, k) strcmp((&p)->name, k)
+#define SEARCH_FUNC(p, k) strcmp((&p)->name, k)
 
 	struct sglib_assembly_data_iterator it;
 	bool found = false;
 	int index = -1;
-	for(assembly_data *assembly = sglib_assembly_data_it_init(&it, loaded_assemblies); assembly != NULL; assembly = sglib_assembly_data_it_next(&it))
+	for (assembly_data *assembly = sglib_assembly_data_it_init(&it, loaded_assemblies); assembly != NULL;
+		 assembly = sglib_assembly_data_it_next(&it))
 	{
-		SGLIB_ARRAY_BINARY_SEARCH(symbol_data, assembly->symbols, 0, assembly->symbol_count - 1, name, SEARCH_FUNC, found, index);
-		if(found)
+		SGLIB_ARRAY_BINARY_SEARCH(
+			symbol_data, assembly->symbols, 0, assembly->symbol_count - 1, name, SEARCH_FUNC, found, index
+		);
+		if (found)
 			return &assembly->symbols[index];
 	}
 	return NULL;
 
-	#undef SEARCH_FUNC
+#undef SEARCH_FUNC
 }
 
 void *loader_search_symbol(const char *name)
 {
 	const symbol_data *sym = search_symbol(name);
-	if(sym != NULL)
+	if (sym != NULL)
 		return sym->address;
 	else
 		return NULL;
@@ -120,25 +126,25 @@ unsigned int loader_init()
 
 	constructors = calloc(1, sizeof(constructors_table));
 	size_t starting_tructor_size = 10;
-	constructors->__preinit_array_end = constructors->__preinit_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__preinit_array_end = constructors->__preinit_array_start =
+		calloc(starting_tructor_size, sizeof(void *));
 	constructors->__preinit_array_max = starting_tructor_size;
-	constructors->__init_array_end = constructors->__init_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__init_array_end = constructors->__init_array_start = calloc(starting_tructor_size, sizeof(void *));
 	constructors->__init_array_max = starting_tructor_size;
-	constructors->__fini_array_end = constructors->__fini_array_start = calloc(starting_tructor_size, sizeof(void*));
+	constructors->__fini_array_end = constructors->__fini_array_start = calloc(starting_tructor_size, sizeof(void *));
 	constructors->__fini_array_max = starting_tructor_size;
-	
-	symbol_data constructor_symbols[] = 
-	{
-		{ .name = "__register_frame_info", .address = &constructors->__register_frame_info },
-		{ .name = "__deregister_frame_info", .address = &constructors->__deregister_frame_info },
-		{ .name = "__preinit_array_start", .address = &constructors->__preinit_array_start },
-		{ .name = "__preinit_array_end", .address = &constructors->__preinit_array_end },
-		{ .name = "__init_array_start", .address = &constructors->__init_array_start },
-		{ .name = "__init_array_end", .address = &constructors->__init_array_end },
-		{ .name = "__fini_array_start", .address = &constructors->__fini_array_start },
-		{ .name = "__fini_array_end", .address = &constructors->__fini_array_end },
+
+	symbol_data constructor_symbols[] = {
+		{.name = "__register_frame_info", .address = &constructors->__register_frame_info},
+		{.name = "__deregister_frame_info", .address = &constructors->__deregister_frame_info},
+		{.name = "__preinit_array_start", .address = &constructors->__preinit_array_start},
+		{.name = "__preinit_array_end", .address = &constructors->__preinit_array_end},
+		{.name = "__init_array_start", .address = &constructors->__init_array_start},
+		{.name = "__init_array_end", .address = &constructors->__init_array_end},
+		{.name = "__fini_array_start", .address = &constructors->__fini_array_start},
+		{.name = "__fini_array_end", .address = &constructors->__fini_array_end},
 	};
-	loader_add_starting_symbols(sizeof(constructor_symbols)/sizeof(*constructor_symbols), constructor_symbols);
+	loader_add_starting_symbols(sizeof(constructor_symbols) / sizeof(*constructor_symbols), constructor_symbols);
 
 	// init libbfd
 	return bfd_init();
@@ -151,7 +157,7 @@ void loader_destroy()
 
 void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 {
-	assembly_data *match, key = { .name = NULL };
+	assembly_data *match, key = {.name = NULL};
 	match = sglib_assembly_data_find_member(loaded_assemblies, &key);
 	size_t count = match->symbol_count;
 	match->symbols = reallocarray(match->symbols, count + n, sizeof(symbol_data));
@@ -163,27 +169,28 @@ void loader_add_starting_symbols(size_t n, const symbol_data symbols[static n])
 #pragma region Constructor & Destructor
 
 #define CHECK_TRUCTOR_SECTION_DECL(type) \
-bool loader_locate_special_section_##type(asection *section, void **location) { \
-	if(strcmp(section->name, "."#type"_array") == 0)	\
-	{	\
-		size_t n = section->size / sizeof(void*);		\
-		size_t count = constructors->__##type##_array_end - constructors->__##type##_array_start;	\
-		size_t max = constructors->__##type##_array_max;	\
-		\
-		if(count + n <= max)	\
-		{	\
-			*location = &constructors->__##type##_array_start[count];	\
-			constructors->__##type##_array_end += n;	\
-		}	\
-		else	\
-		{	\
-			/*TODO: Handle expanding vector*/  \
-			*location = NULL;	\
-		}	\
-		return true;	\
-	} \
-	return false;	\
-}
+	bool loader_locate_special_section_##type(asection *section, void **location) \
+	{ \
+		if (strcmp(section->name, "." #type "_array") == 0) \
+		{ \
+			size_t n = section->size / sizeof(void *); \
+			size_t count = constructors->__##type##_array_end - constructors->__##type##_array_start; \
+			size_t max = constructors->__##type##_array_max; \
+\
+			if (count + n <= max) \
+			{ \
+				*location = &constructors->__##type##_array_start[count]; \
+				constructors->__##type##_array_end += n; \
+			} \
+			else \
+			{ \
+				/*TODO: Handle expanding vector*/ \
+				*location = NULL; \
+			} \
+			return true; \
+		} \
+		return false; \
+	}
 
 #define CHECK_TRUCTOR_SECTION_CALL(type) loader_locate_special_section_##type
 
@@ -191,15 +198,15 @@ CHECK_TRUCTOR_SECTION_DECL(preinit)
 CHECK_TRUCTOR_SECTION_DECL(init)
 CHECK_TRUCTOR_SECTION_DECL(fini)
 
-void *loader_locate_special_section (asection *section)
+void *loader_locate_special_section(asection *section)
 {
 	void *location;
 
-	if(CHECK_TRUCTOR_SECTION_CALL(init)(section, &location))
+	if (CHECK_TRUCTOR_SECTION_CALL(init)(section, &location))
 		return location;
-	if(CHECK_TRUCTOR_SECTION_CALL(fini)(section, &location))
+	if (CHECK_TRUCTOR_SECTION_CALL(fini)(section, &location))
 		return location;
-	if(CHECK_TRUCTOR_SECTION_CALL(preinit)(section, &location))
+	if (CHECK_TRUCTOR_SECTION_CALL(preinit)(section, &location))
 		return location;
 
 	return NULL;
@@ -244,11 +251,10 @@ static ssize_t register_tls_segment(size_t size, size_t alignment, const assembl
 	ssize_t offset = tls_tmp_template_size;
 	ssize_t extra = offset % alignment;
 	// Add empty space for alignment
-	if(extra > 0)
+	if (extra > 0)
 	{
 		tmpi = malloc(sizeof(tls_info));
-		*tmpi = (tls_info)
-		{
+		*tmpi = (tls_info){
 			.in_use = false,
 			.offset = offset,
 			.size = extra,
@@ -258,8 +264,7 @@ static ssize_t register_tls_segment(size_t size, size_t alignment, const assembl
 	}
 	// Add to TLS schema
 	tmpi = malloc(sizeof(tls_info));
-	*tmpi = (tls_info)
-	{
+	*tmpi = (tls_info){
 		.in_use = true,
 		.offset = offset,
 		.size = size,
@@ -274,14 +279,14 @@ static ssize_t register_tls_segment(size_t size, size_t alignment, const assembl
 
 void *loader_tls_ptr(const tls_data *tcb, ssize_t offset)
 {
-	return (void*)tcb + offset;
+	return (void *)tcb + offset;
 }
 
 void *local_tls_offset(void *var);
 
 tls_data *loader_create_tcb()
 {
-	if(tls_schema == NULL)
+	if (tls_schema == NULL)
 		return NULL;
 	size_t size = tls_schema->offset + tls_schema->size + sizeof(tls_data);
 	tls_data *tcb = malloc(size);
@@ -292,11 +297,9 @@ tls_data *loader_create_tcb()
 struct tls_data *loader_switch_tcb(struct tls_data *tcb)
 {
 	struct tls_data *tmp = __builtin_thread_pointer();
-	if(tcb != NULL)
+	if (tcb != NULL)
 	{
-		asm ("msr tpidr_el1, %0"
-			: 
-			: "r" (tcb));
+		asm("msr tpidr_el1, %0" : : "r"(tcb));
 	}
 	return tmp;
 }
@@ -306,9 +309,9 @@ void loader_print_tls_layout(const struct tls_info *schema)
 	printf("TLS Schema:\n");
 	const assembly_data *last = NULL;
 	SGLIB_LIST_MAP_ON_ELEMENTS(const tls_info, schema, segment, prev, {
-		if(segment->in_use)
+		if (segment->in_use)
 		{
-			if(last != segment->assembly)
+			if (last != segment->assembly)
 			{
 				last = segment->assembly;
 				printf("Assembly: %s\n", last->name != NULL ? last->name : "LOCAL");
@@ -324,34 +327,36 @@ void loader_print_tls_layout(const struct tls_info *schema)
 
 #pragma region Relocations
 
-extern bfd_vma _bfd_aarch64_elf_resolve_relocation(bfd *input_bfd, bfd_reloc_code_real_type r_type, bfd_vma place,
-                                                   bfd_vma value, bfd_vma addend, bool weak_undef_p);
+extern bfd_vma _bfd_aarch64_elf_resolve_relocation(
+	bfd *input_bfd, bfd_reloc_code_real_type r_type, bfd_vma place, bfd_vma value, bfd_vma addend, bool weak_undef_p
+);
 
-extern bfd_reloc_status_type _bfd_aarch64_elf_put_addend(bfd *abfd, bfd_byte *address, bfd_reloc_code_real_type r_type,
-                                                         reloc_howto_type *howto, bfd_signed_vma addend);
+extern bfd_reloc_status_type _bfd_aarch64_elf_put_addend(
+	bfd *abfd, bfd_byte *address, bfd_reloc_code_real_type r_type, reloc_howto_type *howto, bfd_signed_vma addend
+);
 extern bfd_reloc_code_real_type elf64_aarch64_bfd_reloc_from_type(bfd *abfd, unsigned int r_type);
 extern reloc_howto_type *elf64_aarch64_howto_from_type(bfd *abfd, unsigned int r_type);
 
-bfd_reloc_status_type aarch64_relocate(unsigned int r_type, bfd *input_bfd, asection *input_section, bfd_vma offset,
-                                       bfd_vma value, bfd_vma addend)
+bfd_reloc_status_type aarch64_relocate(
+	unsigned int r_type, bfd *input_bfd, asection *input_section, bfd_vma offset, bfd_vma value, bfd_vma addend
+)
 {
 	reloc_howto_type *howto;
 	bfd_vma place;
 
 	howto = elf64_aarch64_howto_from_type(input_bfd, r_type);
 	place = input_section->output_offset + offset;
-	if(input_section->userdata != NULL)
-		place += *(bfd_vma*)input_section->userdata;
+	if (input_section->userdata != NULL)
+		place += *(bfd_vma *)input_section->userdata;
 
 	r_type = elf64_aarch64_bfd_reloc_from_type(input_bfd, r_type);
 	value += input_section->output_section->output_offset;
 	value = _bfd_aarch64_elf_resolve_relocation(input_bfd, r_type, place, value, addend, false);
 	// R_AARCH64_ABS64, R_AARCH64_ABS32, R_AARCH64_ABS16
-	if(howto->type >= 257 && howto->type <= 259)
+	if (howto->type >= 257 && howto->type <= 259)
 		value += addend;
 	return _bfd_aarch64_elf_put_addend(input_bfd, (bfd_byte *)place, r_type, howto, value);
 }
-
 
 #pragma endregion
 
@@ -377,12 +382,12 @@ int loader_load_file(FILE *file, const char *filename)
 		// skip section if not meant to be loaded
 		if (!(flags & SEC_ALLOC))
 			continue;
-		
+
 		void *memory;
 		// If it's thread local data, add to TLS template
 		if (flags & SEC_THREAD_LOCAL)
 		{
-			ssize_t offset = register_tls_segment(section->size, 1<<section->alignment_power, assembly);
+			ssize_t offset = register_tls_segment(section->size, 1 << section->alignment_power, assembly);
 			// Set pointer to copy section contents to template
 			memory = loader_tls_ptr(tls_template, offset);
 			section->output_offset = offset;
@@ -398,24 +403,23 @@ int loader_load_file(FILE *file, const char *filename)
 
 		// void *memory = aligned_alloc(1<<section->alignment_power, section->size);
 		// Load from file or zero out depending on flag
-		if(flags & SEC_LOAD)
+		if (flags & SEC_LOAD)
 			bfd_get_section_contents(abfd, section, memory, 0, section->size);
 		else
 			memset(memory, 0, section->size);
 
 		section_data *sec = malloc(sizeof(section_data));
-		*sec = (section_data)
-		{
+		*sec = (section_data){
 			.name = strdup(section->name),
 			.tls = !!(flags & SEC_THREAD_LOCAL),
-			.address = (void*)section->output_offset,
+			.address = (void *)section->output_offset,
 		};
 		sglib_section_data_add(&loaded_sections, sec);
 	}
 
 	printf("\n");
 	sglib_section_data_reverse(&loaded_sections);
-	
+
 	// load the symbol table from the object file
 	size_t symsize = bfd_get_symtab_upper_bound(abfd);
 	asymbol **symbols = malloc(symsize);
@@ -429,10 +433,10 @@ int loader_load_file(FILE *file, const char *filename)
 	{
 		asymbol *symbol = symbols[i];
 		// Symbols in undefined section have to be pointed to external symbols
-		if(bfd_is_und_section(symbol->section))
+		if (bfd_is_und_section(symbol->section))
 		{
 			const symbol_data *ref = search_symbol(symbol->name);
-			if(ref != NULL)
+			if (ref != NULL)
 				symbol->value = (symvalue)ref->address;
 			else
 			{
@@ -441,25 +445,23 @@ int loader_load_file(FILE *file, const char *filename)
 				symbol->flags |= undefined_flag;
 				fprintf(stderr, "Undefined symbol `%s' pointed to 0x%04lx\n", symbol->name, symbol->value);
 			}
-
 		}
-		else if(symbol->flags & BSF_GLOBAL)
+		else if (symbol->flags & BSF_GLOBAL)
 		{
-			symbols_simple[symbols_simple_count++] = (symbol_data)
-			{
+			symbols_simple[symbols_simple_count++] = (symbol_data){
 				.name = strdup(symbol->name),
-				.address = symbol->section->output_offset + (void*)symbol->value,
+				.address = symbol->section->output_offset + (void *)symbol->value,
 			};
 		}
 	}
-	
+
 	struct sglib_section_data_iterator sd_it;
 	section_data *sd_cur = sglib_section_data_it_init(&sd_it, loaded_sections);
 	for (asection *section = abfd->sections; section != NULL; section = section->next)
 	{
-		if(sd_cur == NULL)
+		if (sd_cur == NULL)
 			break;
-		else if(NAME_COMP(sd_cur, section) == 0)
+		else if (NAME_COMP(sd_cur, section) == 0)
 			sd_cur = sglib_section_data_it_next(&sd_it);
 		else
 			continue;
@@ -468,7 +470,7 @@ int loader_load_file(FILE *file, const char *filename)
 		long relsize = bfd_get_reloc_upper_bound(abfd, section);
 		arelent **relpp = malloc(relsize);
 		long relcount = bfd_canonicalize_reloc(abfd, section, relpp, symbols);
-	
+
 		for (int i = 0; i < relcount; i++)
 		{
 			arelent *reloc = relpp[i];
@@ -476,15 +478,16 @@ int loader_load_file(FILE *file, const char *filename)
 			section->output_section = symbol->section;
 			// printf("Relocating symbol (%s) to section (%s) at 0x%08lx + 0x%08lx = 0x%08lx\n", symbol->name, section->output_section->name, section->output_section->output_offset, symbol->value, section->output_section->output_offset + symbol->value);
 			bfd_reloc_status_type status;
-			if((symbol->flags & undefined_flag) && (symbol->flags & BSF_WEAK))
+			if ((symbol->flags & undefined_flag) && (symbol->flags & BSF_WEAK))
 				continue;
-			if(symbol->flags & undefined_flag)
+			if (symbol->flags & undefined_flag)
 				status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, 0);
 			else
-				status = aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, reloc->addend);
-			if(status == bfd_reloc_dangerous)
+				status =
+					aarch64_relocate(reloc->howto->type, abfd, section, reloc->address, symbol->value, reloc->addend);
+			if (status == bfd_reloc_dangerous)
 				printf("Dangerous relocation\n");
-			else if(status != bfd_reloc_ok && status != bfd_reloc_undefined)
+			else if (status != bfd_reloc_ok && status != bfd_reloc_undefined)
 				printf("Failed relocation. Error %d\n", status);
 		}
 		free(relpp);
@@ -493,8 +496,7 @@ int loader_load_file(FILE *file, const char *filename)
 	symbols_simple = reallocarray(symbols_simple, sizeof(symbol_data), symbols_simple_count);
 	SGLIB_ARRAY_SINGLE_QUICK_SORT(symbol_data, symbols_simple, symbols_simple_count, NAME_COMP_DIRECT);
 
-	*assembly = (assembly_data)
-	{
+	*assembly = (assembly_data){
 		.name = strdup(bfd_get_filename(abfd)),
 		.sections = loaded_sections,
 		.symbol_count = symbols_simple_count,

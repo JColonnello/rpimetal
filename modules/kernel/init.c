@@ -11,8 +11,8 @@
  */
 
 /* Handle ELF .{pre_init,init,fini}_array sections.  */
-#include <sys/types.h>
 #include <attrib.h>
+#include <sys/types.h>
 
 /* These magic symbols are provided by the linker.  */
 weak extern void (*__preinit_array_start[])(void);
@@ -26,7 +26,7 @@ void _init(void)
 }
 
 /* Iterate over all the init routines.  */
-void libc_init_array(void) 
+void libc_init_array(void)
 {
 	size_t count;
 	size_t i;

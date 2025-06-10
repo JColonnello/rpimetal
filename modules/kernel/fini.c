@@ -11,8 +11,8 @@
  */
 
 /* Handle ELF .{pre_init,init,fini}_array sections.  */
-#include <sys/types.h>
 #include <attrib.h>
+#include <sys/types.h>
 
 weak extern void (*__fini_array_start[])(void);
 weak extern void (*__fini_array_end[])(void);

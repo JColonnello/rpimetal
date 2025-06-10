@@ -27,22 +27,22 @@
 #include <stdio.h>
 
 /* mailbox message buffer */
-volatile unsigned int  __attribute__((aligned(16))) mbox[36];
+volatile unsigned int __attribute__((aligned(16))) mbox[36];
 
-#define VIDEOCORE_MBOX  (MMIO_BASE+0x0000B880)
-#define MBOX_READ       ((volatile unsigned int*)(VIDEOCORE_MBOX+0x0))
-#define MBOX_POLL       ((volatile unsigned int*)(VIDEOCORE_MBOX+0x10))
-#define MBOX_SENDER     ((volatile unsigned int*)(VIDEOCORE_MBOX+0x14))
-#define MBOX_STATUS     ((volatile unsigned int*)(VIDEOCORE_MBOX+0x18))
-#define MBOX_CONFIG     ((volatile unsigned int*)(VIDEOCORE_MBOX+0x1C))
-#define MBOX_WRITE      ((volatile unsigned int*)(VIDEOCORE_MBOX+0x20))
-#define MBOX_RESPONSE   0x80000000
-#define MBOX_FULL       0x80000000
-#define MBOX_EMPTY      0x40000000
+#define VIDEOCORE_MBOX (MMIO_BASE + 0x0000B880)
+#define MBOX_READ ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x0))
+#define MBOX_POLL ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x10))
+#define MBOX_SENDER ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x14))
+#define MBOX_STATUS ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x18))
+#define MBOX_CONFIG ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x1C))
+#define MBOX_WRITE ((volatile unsigned int *)(VIDEOCORE_MBOX + 0x20))
+#define MBOX_RESPONSE 0x80000000
+#define MBOX_FULL 0x80000000
+#define MBOX_EMPTY 0x40000000
 
 void mbox_irq_init()
 {
-    *MBOX_CONFIG = 1;
+	*MBOX_CONFIG = 1;
 }
 
 /**
@@ -50,18 +50,21 @@ void mbox_irq_init()
  */
 int mbox_call(unsigned char ch)
 {
-    unsigned int r = (((unsigned int)((unsigned long)&mbox)&~0xF) | (ch&0xF));
-    /* wait until we can write to the mailbox */
-    do{asm volatile("nop");}while(*MBOX_STATUS & MBOX_FULL);
-    /* write the address of our message to the mailbox with channel identifier */
-    *MBOX_WRITE = r;
-    
-    return 0;
+	unsigned int r = (((unsigned int)((unsigned long)&mbox) & ~0xF) | (ch & 0xF));
+	/* wait until we can write to the mailbox */
+	do
+	{
+		asm volatile("nop");
+	} while (*MBOX_STATUS & MBOX_FULL);
+	/* write the address of our message to the mailbox with channel identifier */
+	*MBOX_WRITE = r;
+
+	return 0;
 }
 
 unsigned mbox_read()
 {
-    printf("You got mail!\n");
-    /* now read the response */
-    return *MBOX_READ;
+	printf("You got mail!\n");
+	/* now read the response */
+	return *MBOX_READ;
 }

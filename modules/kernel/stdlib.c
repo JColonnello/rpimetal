@@ -10,7 +10,7 @@ int _fstat(int fildes, struct stat *buf)
 	if (fildes >= 0 && fildes <= 2)
 	{
 		*buf = (struct stat){
-		    .st_mode = S_IFCHR,
+			.st_mode = S_IFCHR,
 		};
 		return 0;
 	}
