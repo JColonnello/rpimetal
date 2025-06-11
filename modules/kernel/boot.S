@@ -1,14 +1,17 @@
 .text
 .globl _start
 _start:
+	// When jumping to the kernel, x30 (lr) is set to the next instruction
+	// This fixes the backtrace, as it is pointing to inside this function,
+	// simulating that a call to another function has already been made.
+	nop
 	// Align and set stack pointer
 	ldr x9, .Lstack
 	and	x9, x9, ~0xf
 	mov	sp, x9
 
 	/* Setup an initial dummy frame with saved fp=0 and saved lr=0 */
-	mov	x29, 0
-	stp	x29, x29, [sp, #-16]!
+	stp	wzr, wzr, [sp, #-16]!
 	mov	x29, sp
 	stp x0, x1, [sp, #-16]!
 	

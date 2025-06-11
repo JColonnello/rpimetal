@@ -31,6 +31,8 @@ static void noreturn kernel_jump()
 		"mov x0, %0\n"
 		"mov x1, %1\n"
 		"mov x2, %2\n"
+		// Point LR to inside the start function to avoid GDB crash
+		"add x30, x2, #4\n"
 		"br x2\n"
 		:
 		: "r"(&boot_info), "r"(boot_userdata), "r"(kernel_start)
