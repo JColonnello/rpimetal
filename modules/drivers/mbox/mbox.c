@@ -62,6 +62,15 @@ int mbox_call(unsigned char ch)
 	return 0;
 }
 
+void mbox_wait()
+{
+	while (mbox[1] != MBOX_RESPONSE)
+	{
+		/* wait for the response */
+		asm volatile("nop");
+	}
+}
+
 unsigned mbox_read()
 {
 	printf("You got mail!\n");

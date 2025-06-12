@@ -5,6 +5,8 @@
 #include "stdlib.h"
 #include <attrib.h>
 #include <boot/custom.h>
+#include <drivers/display.h>
+#include <resources/zorzal.h>
 #include <stdio.h>
 #include <sys/reent.h>
 
@@ -61,7 +63,11 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 
 	test(in, out);
 	printf("out = { %d, %d, %d, %d }\n", out[0], out[1], out[2], out[3]);
-	printf("Done!\n");
+	puts("Done!\n");
+
+	puts("Starting display driver...\n");
+	lfb_init();
+	lfb_showpicture(header_data, height, width);
 
 	return 0;
 }

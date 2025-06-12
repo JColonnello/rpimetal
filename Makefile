@@ -21,10 +21,10 @@ clean:
 rebuild: clean all
 
 run: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -vnc :1,websocket=on
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -nographic -d int -vnc :1,websocket=on -S -s
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -S -s
 
 uart0:
 	nc -lkvp 4444
