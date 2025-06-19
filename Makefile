@@ -11,7 +11,7 @@ MODULES += $(KERNEL)
 
 # Phony targets
 
-.PHONY: all clean rebuild run debug uart0 toolchain undef
+.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc
 
 all: $(IMAGE)
 
@@ -21,10 +21,16 @@ clean:
 rebuild: clean all
 
 run: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 # -d int
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -d int -S -s
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -S -s # -d int
+
+run-vnc: all
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -vnc :1,websocket=on # -d int
+
+debug-vnc: all
+	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -S -s -vnc :1,websocket=on # -d int
 
 uart0:
 	nc -lkvp 4444

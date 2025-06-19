@@ -1,11 +1,13 @@
 .globl enable_irq
 enable_irq:
-	msr daifclr, #2 
+	msr daifclr, #3
+	isb
 	ret
 
 .globl disable_irq
 disable_irq:
-	msr	daifset, #2
+	msr	daifset, #3
+	isb
 	ret
 
 #include "entry.h"
@@ -35,13 +37,7 @@ disable_irq:
 	stp	x12, x13, [sp, #16 * 6]
 	stp	x14, x15, [sp, #16 * 7]
 	stp	x16, x17, [sp, #16 * 8]
-	stp	x18, x19, [sp, #16 * 9]
-	stp	x20, x21, [sp, #16 * 10]
-	stp	x22, x23, [sp, #16 * 11]
-	stp	x24, x25, [sp, #16 * 12]
-	stp	x26, x27, [sp, #16 * 13]
-	stp	x28, x29, [sp, #16 * 14]
-	str	x30, [sp, #16 * 15] 
+	stp	x18, x30, [sp, #16 * 9]
 	.endm
 
 	.macro	kernel_exit
@@ -54,14 +50,8 @@ disable_irq:
 	ldp	x12, x13, [sp, #16 * 6]
 	ldp	x14, x15, [sp, #16 * 7]
 	ldp	x16, x17, [sp, #16 * 8]
-	ldp	x18, x19, [sp, #16 * 9]
-	ldp	x20, x21, [sp, #16 * 10]
-	ldp	x22, x23, [sp, #16 * 11]
-	ldp	x24, x25, [sp, #16 * 12]
-	ldp	x26, x27, [sp, #16 * 13]
-	ldp	x28, x29, [sp, #16 * 14]
-	ldr	x30, [sp, #16 * 15] 
-	add	sp, sp, #S_FRAME_SIZE		
+	ldp	x18, x30, [sp, #16 * 9]
+	add	sp, sp, #S_FRAME_SIZE
 	eret
 	.endm
 

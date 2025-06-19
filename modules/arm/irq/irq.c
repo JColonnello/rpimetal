@@ -5,8 +5,10 @@
 #include <drivers/mbox.h>
 #include <drivers/uart.h>
 #include <stdio.h>
+#include <string.h>
 
 extern const void vectors;
+void handle_timer_irq(void);
 
 constructor void irq_vector_init()
 {
@@ -79,16 +81,29 @@ void handle_irq(void)
 {
 	unsigned int irq = mreg32(CORE0_INT_SOURCE);
 
-	for (unsigned handled = 1; handled; irq &= ~handled)
+#define test_bit(bit) (tmp = irq & (1 << (bit)), handled |= tmp, tmp)
+	for (unsigned handled = 1, tmp; handled; irq &= ~handled)
 	{
 		handled = 0;
-		if ((handled = irq & 1 << 11))
+		if (test_bit(11))
 		{
 			// handle_timer_irq();
 		}
-		else if ((handled = irq & 1 << 8))
+		// Generic timer CNTPNS
+		if (test_bit(1))
+		{
+			// Disable the timer
+			asm("msr CNTP_CTL_EL0, %0" : : "r"(0));
+		}
+		if (test_bit(8))
 			handle_gpu_irq(mreg32(IRQ_BASIC_PENDING));
 	}
 	if (irq)
 		printf("Unknown pending irq: %x\n", irq);
+}
+
+void register_fiq(void (*handler)(void))
+{
+	void *place = (void *)&vectors + 0x300;
+	memcpy(place, handler, 128);
 }
