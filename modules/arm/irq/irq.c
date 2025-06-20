@@ -54,9 +54,9 @@ constructor void enable_interrupt_controller()
 	enable_irq();
 }
 
-void show_invalid_entry_message(int type, unsigned long esr, unsigned long address)
+void show_invalid_entry_message(int type, unsigned long esr, unsigned long pc, unsigned long far)
 {
-	printf("%s, ESR: %lx, address: %lx\n", entry_error_messages[type], esr, address);
+	printf("%s, ESR: %lx, PC: %lx, FAR: %lx\n", entry_error_messages[type], esr, pc, far);
 }
 
 void handle_gpu_irq(unsigned irq)
@@ -77,6 +77,8 @@ void handle_gpu_irq(unsigned irq)
 		printf("Unknown pending GPU irq: %x\n", irq);
 }
 
+extern void timer_handler(void);
+
 void handle_irq(void)
 {
 	unsigned int irq = mreg32(CORE0_INT_SOURCE);
@@ -87,7 +89,7 @@ void handle_irq(void)
 		handled = 0;
 		if (test_bit(11))
 		{
-			// handle_timer_irq();
+			timer_handler();
 		}
 		// Generic timer CNTPNS
 		if (test_bit(1))

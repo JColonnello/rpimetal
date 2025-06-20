@@ -58,64 +58,10 @@ destructor static void print_exit()
 	printf("Exitting kernel\n");
 }
 
-unsigned long get_cnt()
+static void timer_callback(unsigned timer, void *data)
 {
-	unsigned long cnt;
-	asm("mrs %0, CNTPCT_EL0" : "=r"(cnt));
-	return cnt;
-}
-
-__attribute__((unused)) static void timer_compare()
-{
-	timer_init();
-
-	unsigned long last_system = 0, count, system, last_count = 0;
-	for (;;)
-	{
-		timer_count(&count, &system);
-
-		printf(
-			"Count: %lu\tCurrent system timer: %lu\tDiff system timer: %ld\n",
-			count,
-			system,
-			(system - last_system) / (count - last_count)
-		);
-		last_system = system;
-		last_count = count;
-		// next += 1000;
-		asm("wfi");
-	}
-}
-
-__attribute__((unused)) static void generic_timer_test()
-{
-	// Clear IMASK (bit 1) in CNTP_CTL_EL0 and get the frequency of the counter
-	unsigned long freq, interval;
-	asm("msr CNTP_CTL_EL0, %1\n"
-		"mrs %0, CNTFRQ_EL0\n"
-		: "=r"(freq)
-		: "r"(0));
-	mreg32(CORE0_INT_CTR) = 1 << 1; // Enable IRQ Core 0
-	interval = 250 * freq / 1000;
-	unsigned long last_system = 0, system;
-	for (;;)
-	{
-		asm("msr CNTP_TVAL_EL0, %2\n"
-			"msr CNTP_CTL_EL0, %3\n"
-			"isb\n"
-			"mrs %0, CNTPCT_EL0\n"
-			"wfi\n"
-			"mrs %1, CNTPCT_EL0\n"
-			: "=r"(last_system), "=r"(system)
-			: "r"(interval), "r"(1)); // 250ms
-
-		printf(
-			"Current system timer: %lu\tDiff system timer (us): %ld\n", system, (system - last_system) * 1000000 / freq
-		);
-		last_system = system;
-		// last_count = count;
-		// next += 1000;
-	}
+	const char *text = data;
+	printf("%s current time: %lu us\n", text, timer_monotonic());
 }
 
 int kernel_start(struct boot_info *info, union boot_userdata userdata)
@@ -133,6 +79,15 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_init();
 	// lfb_showpicture(header_data, height, width);
 
-	generic_timer_test();
+	timer_init();
+	// Wait 200ms and print current time
+	timer_register(1000000, true, timer_callback, "Callback");
+	for (;;)
+	{
+		timer_millisleep(2000);
+		unsigned long time = timer_monotonic();
+		printf("Sleep current time: %lu us\n", time);
+	}
+
 	return 0;
 }

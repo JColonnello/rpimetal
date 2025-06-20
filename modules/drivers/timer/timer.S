@@ -22,3 +22,8 @@ handle_timer_irq:
 
 	ldp x0, x1, [sp], #16
 	eret
+
+.global stop_generic_timer
+stop_generic_timer:
+	msr CNTP_CTL_EL0, xzr
+	eret
