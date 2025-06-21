@@ -1,11 +1,11 @@
-.globl enable_irq
-enable_irq:
+.globl irq_enable
+irq_enable:
 	msr daifclr, #3
 	isb
 	ret
 
-.globl disable_irq
-disable_irq:
+.globl irq_disable
+irq_disable:
 	msr	daifset, #3
 	isb
 	ret
@@ -130,6 +130,6 @@ error_invalid_el0_32:
 
 el1_irq:
 	kernel_entry 
-	bl	handle_irq
+	bl	irq_handle
 	kernel_exit 
 

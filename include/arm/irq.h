@@ -1,11 +1,16 @@
-#ifndef _IRQ_H
-#define _IRQ_H
+#pragma once
+#include <stdbool.h>
 
-void enable_interrupt_controller(void);
+typedef enum
+{
+	LOCAL_INTERRUPT,
+	BASIC_INTERRUPT,
+	GPU_INTERRUPT1,
+	GPU_INTERRUPT2,
+} irq_type;
 
-void irq_vector_init(void);
-void enable_irq(void);
-void disable_irq(void);
-void register_fiq(void (*handler)(void));
-
-#endif /*_IRQ_H */
+void irq_enable(void);
+void irq_disable(void);
+bool irq_register(void (*handler)(void *), void *param, irq_type type, unsigned char nIrq);
+bool irq_unregister(irq_type type, unsigned char nIrq);
+void irq_fiq_handler(void (*handler)(void));

@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "arm/irq.h"
+#include "attrib.h"
 #include "utils.h"
 #include <assert.h>
 #include <drivers/irq.h>
@@ -13,14 +14,16 @@ _Static_assert(LOCAL_TIMER_INTERVAL < (1 << 28), "Interval must be less than 2^2
 static unsigned long freq;
 
 extern void stop_generic_timer(void);
+extern void timer_handler(void);
 
-void timer_init(void)
+constructor static void timer_init(void)
 {
-	register_fiq(stop_generic_timer);
+	irq_fiq_handler(stop_generic_timer);
 	// Redirect generic timer interrupt to FIQ
 	mreg32(CORE0_INT_CTR) = 1 << 5;
 	// Redirect locar timer interrupt to Core 0 IRQ
 	mreg32(TIMER_LIR) = 0b000;
+	irq_register((void (*)(void *))timer_handler, NULL, LOCAL_INTERRUPT, 11);
 	// Set value, enable local timer and Interrupt
 	mreg32(TIMER_CTRL) = ((1 << 28) | (1 << 29) | LOCAL_TIMER_INTERVAL);
 	// Get the frequency of the system counter

@@ -79,7 +79,6 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_init();
 	// lfb_showpicture(header_data, height, width);
 
-	timer_init();
 	// Wait 200ms and print current time
 	timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)

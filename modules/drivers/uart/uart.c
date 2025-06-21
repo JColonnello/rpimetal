@@ -23,6 +23,7 @@
  *
  */
 
+#include "arm/irq.h"
 #include <attrib.h>
 #include <drivers/gpio.h>
 #include <drivers/mbox.h>
@@ -102,10 +103,12 @@
 
 uint32_t nLCRH = LCRH_FEN_MASK;
 
+static void handle_uart0(void *);
+
 /**
  * Set baud rate and characteristics (115200 8N1) and map to GPIO
  */
-constructor void uart_init()
+constructor static void uart_init()
 {
 	register unsigned int r;
 
@@ -151,6 +154,8 @@ constructor void uart_init()
 	*UART0_LCRH = nLCRH;
 	*UART0_IMSC = INT_RX | INT_RT | INT_OE;
 	*UART0_CR = 0x301; // enable Tx, Rx, UART
+
+	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 }
 
 uint16_t uart_ints()
@@ -172,7 +177,7 @@ void uart_send(char c)
 	*UART0_DR = c;
 }
 
-void handle_uart0(void)
+static void handle_uart0(void *data)
 {
 	*UART0_ICR = 0;
 	while (!(*UART0_FR & 0x10))
