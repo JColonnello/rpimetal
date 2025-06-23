@@ -21,6 +21,7 @@ master:
 	str x0, [x1], #8
 	str x0, [x1], #8
 	str x0, [x1]
+	sev
 
 	// Enable SIMD and float extensions
 	ldr x0, =CPACR_VALUE
