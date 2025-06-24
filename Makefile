@@ -89,6 +89,7 @@ $(BUILD_DIR)/%.s.o: %.s
 # Other Makefiles
 
 ifneq (clean,$(MAKECMDGOALS))
+-include $(OBJ_FILES:%.o=%.d)
 -include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
