@@ -1,3 +1,4 @@
+#define NO_TIMER_WEAK
 #include "timer.h"
 #include "arm/irq.h"
 #include "attrib.h"

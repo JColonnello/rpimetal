@@ -25,6 +25,7 @@
 
 #include "arm/irq.h"
 #include "attrib.h"
+#include "drivers/timer.h"
 #include <drivers/gpio.h>
 #include <drivers/mbox.h>
 #include <stdio.h>
@@ -58,7 +59,7 @@ int mbox_call(unsigned char ch)
 	/* wait until we can write to the mailbox */
 	do
 	{
-		asm volatile("nop");
+		timer_microsleep(10);
 	} while (*MBOX_STATUS & MBOX_FULL);
 	/* write the address of our message to the mailbox with channel identifier */
 	*MBOX_WRITE = r;
@@ -71,7 +72,7 @@ void mbox_wait()
 	while (mbox[1] != MBOX_RESPONSE)
 	{
 		/* wait for the response */
-		asm volatile("nop");
+		timer_microsleep(10);
 	}
 }
 

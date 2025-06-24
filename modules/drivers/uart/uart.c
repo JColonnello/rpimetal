@@ -24,6 +24,7 @@
  */
 
 #include "arm/irq.h"
+#include "drivers/timer.h"
 #include <attrib.h>
 #include <drivers/gpio.h>
 #include <drivers/mbox.h>
@@ -110,6 +111,8 @@ static void handle_uart0(void *);
  */
 constructor static void uart_init()
 {
+	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
+
 	register unsigned int r;
 
 	/* initialize UART */
@@ -133,17 +136,9 @@ constructor static void uart_init()
 	r |= (4 << 12) | (4 << 15);    // alt0
 	*GPFSEL1 = r;
 	*GPPUD = 0; // enable pins 14 and 15
-	r = 150;
-	while (r--)
-	{
-		asm volatile("nop");
-	}
+	timer_microsleep(1);
 	*GPPUDCLK0 = (1 << 14) | (1 << 15);
-	r = 150;
-	while (r--)
-	{
-		asm volatile("nop");
-	}
+	timer_microsleep(1);
 	*GPPUDCLK0 = 0; // flush GPIO setup
 
 	*UART0_ICR = 0x7FF; // clear interrupts
@@ -154,8 +149,6 @@ constructor static void uart_init()
 	*UART0_LCRH = nLCRH;
 	*UART0_IMSC = INT_RX | INT_RT | INT_OE;
 	*UART0_CR = 0x301; // enable Tx, Rx, UART
-
-	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 }
 
 uint16_t uart_ints()
