@@ -163,9 +163,9 @@ bool timer_unregister(unsigned id)
 	if (id >= handler_id_curr)
 		return false; // Invalid ID
 
-	for (unsigned i = 0; i < MAX_TIMERS; i++)
+	for (unsigned i = 0; i < MAX_TIMERS && timers[i].active; i++)
 	{
-		if (timers[i].active && timers[i].id == id)
+		if (timers[i].id == id)
 		{
 			timers[i].active = false; // Deactivate timer
 			pack_timers();            // Pack timers to remove gaps
@@ -180,4 +180,23 @@ unsigned long timer_monotonic(void)
 	unsigned long system_counter;
 	asm("mrs %0, CNTPCT_EL0" : "=r"(system_counter));
 	return system_counter * 1000000 / freq; // Convert to microseconds
+}
+
+bool timer_set_data(unsigned id, void **old_data, void *const *new_data)
+{
+	if (id >= handler_id_curr)
+		return false; // Invalid ID
+
+	for (unsigned i = 0; i < MAX_TIMERS && timers[i].active; i++)
+	{
+		if (timers[i].id == id)
+		{
+			if (old_data)
+				*old_data = timers[i].param; // Store old data if requested
+			if (new_data)
+				timers[i].param = *new_data; // Update to new data
+			return true;                     // Successfully updated
+		}
+	}
+	return false; // Timer not found
 }
