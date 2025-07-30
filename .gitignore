@@ -37,6 +37,7 @@
 *.x86_64
 *.hex
 *.img
+build/multiplex
 
 # Debug files
 *.dSYM/

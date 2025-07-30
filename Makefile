@@ -88,6 +88,13 @@ $(BUILD_DIR)/%.s.o: %.s
 
 # Other Makefiles
 
+# Tools
+
+.PHONY:
+multiplex: $(BUILD_DIR)/multiplex
+$(BUILD_DIR)/multiplex: toolchain/multiplex.c
+	gcc -o $@ $<
+
 ifneq (clean,$(MAKECMDGOALS))
 -include $(OBJ_FILES:%.o=%.d)
 -include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
