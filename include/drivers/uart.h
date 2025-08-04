@@ -1,11 +1,9 @@
-#ifndef _UART_H
-#define _UART_H
+#pragma once
+#include <stdbool.h>
 #include <stddef.h>
 
-char uart_recv(void);
-void uart_send(char c);
-void uart_send_string(const char *str);
-void uart_hex(unsigned int d);
-void uart_send_buffer(const char *s, size_t n);
-
-#endif /*_UART_H */
+bool uart_recv(char *c);
+bool uart_send(char c);
+size_t uart_send_string(const char *str);
+size_t uart_send_buffer(const char *s, size_t n);
+void uart_set_callback(void (*handler)(size_t available));

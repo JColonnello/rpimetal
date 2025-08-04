@@ -24,11 +24,12 @@
  */
 
 #include "arm/irq.h"
-#include "drivers/timer.h"
 #include <attrib.h>
 #include <drivers/gpio.h>
 #include <drivers/mbox.h>
 #include <drivers/uart.h>
+#include <ringbuffer.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -44,6 +45,10 @@
 #define UART0_RIS ((volatile uint32_t *)(MMIO_BASE + 0x0020103C))
 #define UART0_MIS ((volatile uint32_t *)(MMIO_BASE + 0x00201040))
 #define UART0_ICR ((volatile uint32_t *)(MMIO_BASE + 0x00201044))
+#define UART0_ITCR ((volatile uint32_t *)(MMIO_BASE + 0x00201080))
+#define UART0_ITIP ((volatile uint32_t *)(MMIO_BASE + 0x00201084))
+#define UART0_ITOP ((volatile uint32_t *)(MMIO_BASE + 0x00201088))
+#define UART0_TDR ((volatile uint32_t *)(MMIO_BASE + 0x0020108C))
 
 // Definitions from Raspberry PI Remote Serial Protocol.
 //     Copyright 2012 Jamie Iles, jamie@jamieiles.com.
@@ -79,7 +84,7 @@
 #define CR_RXE_MASK (1 << 9)
 #define CR_TXE_MASK (1 << 8)
 #define CR_LBE_MASK (1 << 7)
-#define CR_UART_EN_MASK (1 << 0)
+#define CR_EN_MASK (1 << 0)
 
 #define IFLS_RXIFSEL_SHIFT 3
 #define IFLS_RXIFSEL_MASK (7 << IFLS_RXIFSEL_SHIFT)
@@ -103,32 +108,33 @@
 #define INT_CTSM (1 << 1)
 
 uint32_t nLCRH = LCRH_FEN_MASK;
+static char raw_rx_buffer[2048], raw_tx_buffer[2048];
+static ring_buffer uart_rx_buffer, uart_tx_buffer;
 
-static void handle_uart0(void *);
-
-/**
- * Set baud rate and characteristics (115200 8N1) and map to GPIO
- */
-constructor static void uart_init()
+static void _nothing(size_t _)
 {
-	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
+}
+static void (*uart_callback)(size_t available) = _nothing;
 
-	register unsigned int r;
-
-	/* initialize UART */
-	*UART0_CR = 0; // turn off UART0
-
+static void set_clock(unsigned long freq)
+{
 	/* set up clock for consistent divisor values */
 	mbox[0] = 9 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = MBOX_TAG_SETCLKRATE; // set clock rate
 	mbox[3] = 12;
 	mbox[4] = 8;
-	mbox[5] = 2;       // UART clock
-	mbox[6] = 4000000; // 4Mhz
-	mbox[7] = 0;       // clear turbo
+	mbox[5] = 2;    // UART clock
+	mbox[6] = freq; // 4Mhz
+	mbox[7] = 0;    // clear turbo
 	mbox[8] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
+	mbox_wait();
+}
+
+static void map_pins()
+{
+	unsigned int r;
 
 	/* map UART0 to GPIO pins */
 	r = *GPFSEL1;
@@ -136,79 +142,133 @@ constructor static void uart_init()
 	r |= (4 << 12) | (4 << 15);    // alt0
 	*GPFSEL1 = r;
 	*GPPUD = 0; // enable pins 14 and 15
-	timer_microsleep(1);
+	for (int i = 150; i--;)
+		asm volatile("nop");
 	*GPPUDCLK0 = (1 << 14) | (1 << 15);
-	timer_microsleep(1);
+	for (int i = 150; i--;)
+		asm volatile("nop");
 	*GPPUDCLK0 = 0; // flush GPIO setup
+}
 
+static void handle_uart0(void *data)
+{
+	uint32_t mis = *UART0_MIS, flag = *UART0_FR;
+	int i;
+	if (mis & INT_RX)
+	{
+		for (i = ring_buffer_capacity(&uart_rx_buffer); !(flag & 0x10) && i > 0; i--)
+		{
+			char c = (char)(*UART0_DR);
+			ring_buffer_queue_nc(&uart_rx_buffer, c);
+			flag = *UART0_FR;
+		}
+		// If there is no more space in the buffer, me mask the interrupt until there is space
+		if (i == 0)
+			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
+		uart_callback(i);
+	}
+	if (mis & INT_TX)
+	{
+		for (i = ring_buffer_num_items(&uart_tx_buffer); !(flag & 0x20) && i > 0; i--)
+		{
+			char c = ring_buffer_dequeue_nc(&uart_tx_buffer);
+			*UART0_DR = c;
+			flag = *UART0_FR;
+		}
+		// If there is nothing more to send, we mask the interrupt until there is something to send
+		if (i == 0)
+			*UART0_IMSC &= ~INT_TX; // disable TX interrupt
+	}
+}
+
+/**
+ * Set baud rate and characteristics (115200 8N1) and map to GPIO
+ */
+constructor static void uart_init()
+{
+	// Initialize ring buffers
+	ring_buffer_init(&uart_rx_buffer, raw_rx_buffer, sizeof(raw_rx_buffer));
+	ring_buffer_init(&uart_tx_buffer, raw_tx_buffer, sizeof(raw_tx_buffer));
+
+	*UART0_CR = 0; // turn off UART0
+	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
+
+	// Wait for UART to be idle
+	while (*UART0_FR & FR_BUSY_MASK)
+		asm volatile("nop");
+	*UART0_LCRH &= ~LCRH_FEN_MASK; // disable FIFOs;
+
+	set_clock(4000000);
+	map_pins();
+
+	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
 	*UART0_IBRD = 2;    // 115200 baud
 	*UART0_FBRD = 0xB;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_8 << IFLS_RXIFSEL_SHIFT;
-	*UART0_LCRH = nLCRH;
-	*UART0_IMSC = INT_RX | INT_RT | INT_OE;
-	*UART0_CR = 0x301; // enable Tx, Rx, UART
+	*UART0_IFLS = IFLS_IFSEL_1_2 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IMSC = INT_RX | INT_TX;
+	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK; // enable UART, TX and RX with loopback
+
+	// The TX interrupt does not get signaled until sending something
+	*UART0_DR = '\n';
+	*UART0_CR &= ~CR_LBE_MASK; // disable loopback
 }
 
-uint16_t uart_ints()
+static inline void signal_tx()
 {
-	return *UART0_MIS;
+	*UART0_IMSC |= INT_TX;
+}
+
+static inline void signal_rx()
+{
+	*UART0_IMSC |= INT_RX;
 }
 
 /**
  * Send a character
  */
-void uart_send(char c)
+bool uart_send(char c)
 {
-	/* wait until we can send */
-	do
-	{
-		asm volatile("nop");
-	} while (*UART0_FR & 0x20);
-	/* write the character to the buffer */
-	*UART0_DR = c;
-}
-
-static void handle_uart0(void *data)
-{
-	*UART0_ICR = 0;
-	while (!(*UART0_FR & 0x10))
-	{
-		uart_send(uart_recv());
-	}
-	uart_send_string("Fin\n");
+	if (!ring_buffer_queue(&uart_tx_buffer, c))
+		return false;
+	signal_tx();
+	return true;
 }
 
 /**
  * Receive a character
  */
-char uart_recv()
+bool uart_recv(char *c)
 {
-	char r;
-	/* read it and return */
-	r = (char)(*UART0_DR);
+	bool r = ring_buffer_dequeue(&uart_rx_buffer, c);
+	signal_rx();
 	return r;
 }
 
 /**
  * Display a string
  */
-void uart_send_string(const char *s)
+size_t uart_send_string(const char *s)
 {
+	size_t count = 0;
 	while (*s)
 	{
-		uart_send(*s++);
+		if (ring_buffer_queue(&uart_tx_buffer, *s++))
+			count++;
 	}
+	signal_tx();
+	return count;
 }
 
 /**
  * Display a buffer of chars
 */
-void uart_send_buffer(const char *s, size_t n)
+size_t uart_send_buffer(const char *s, size_t n)
 {
-	for (unsigned i = 0; i < n; i++)
-		uart_send(s[i]);
+	size_t count = ring_buffer_queue_arr(&uart_tx_buffer, s, n);
+	signal_tx();
+	return count;
 }
 
 /**
@@ -226,4 +286,9 @@ void uart_hex(unsigned int d)
 		n += n > 9 ? 0x37 : 0x30;
 		uart_send(n);
 	}
+}
+
+void uart_set_callback(void (*handler)(size_t available))
+{
+	uart_callback = handler;
 }
