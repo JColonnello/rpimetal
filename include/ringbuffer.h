@@ -146,18 +146,15 @@ static inline size_t ring_buffer_capacity(ring_buffer *buffer)
  * @param buffer The buffer in which the data should be placed.
  * @param data A pointer to the array of bytes to place in the queue.
  * @param size The size of the array.
+ * @return The number of bytes added to the ring buffer.
  */
-static inline void ring_buffer_queue_arr(ring_buffer *buffer, const char *data, size_t size)
+static inline size_t ring_buffer_queue_arr(ring_buffer *buffer, const char *data, size_t size)
 {
 	size_t capacity = ring_buffer_capacity(buffer);
 
 	// Check if the size to add is larger than the capacity of the buffer
-	// If so, as the buffer can be overwritten, we just copy the last part of the data
 	if (size > capacity)
-	{
-		data += size - capacity;
 		size = capacity;
-	}
 
 	size_t freeSpace = buffer->end - buffer->tail;
 	if (size > freeSpace)
@@ -177,12 +174,14 @@ static inline void ring_buffer_queue_arr(ring_buffer *buffer, const char *data, 
 
 	CLIP(buffer, buffer->tail);
 	buffer->empty = false;
+	return size;
 }
 
 /**
  * Returns the oldest byte in a ring buffer without checking if it is empty.
  * @param buffer The buffer from which the data should be returned.
  * @param data A pointer to the location at which the data should be placed.
+ * @return The oldest byte in the ring buffer.
  */
 static inline char ring_buffer_dequeue_nc(ring_buffer *buffer)
 {
@@ -213,19 +212,20 @@ static inline bool ring_buffer_dequeue(ring_buffer *buffer, char *data)
 }
 
 /**
- * Returns the <em>len</em> oldest bytes in a ring buffer.
+ * Returns the <em>size</em> oldest bytes in a ring buffer.
  * @param buffer The buffer from which the data should be returned.
  * @param data A pointer to the array at which the data should be placed.
- * @param len The maximum number of bytes to return.
+ * @param size The maximum number of bytes to return.
  * @return The number of bytes returned.
  */
-static inline size_t ring_buffer_dequeue_arr(ring_buffer *buffer, char *data, size_t len)
+static inline size_t ring_buffer_dequeue_arr(ring_buffer *buffer, char *data, size_t size)
 {
 	if (buffer->empty)
 		return 0; // Buffer is empty
 
 	size_t numItems = ring_buffer_num_items(buffer);
-	size_t size = numItems < len ? numItems : len;
+	if (numItems < size)
+		size = numItems;
 	size_t untilEnd = buffer->end - buffer->head;
 
 	if (size > untilEnd)
