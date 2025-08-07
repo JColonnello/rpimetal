@@ -2,16 +2,16 @@ include Makefile.inc
 
 BUILD_DIR = build
 MODULES_DIR = modules
-IMAGE = kernel8.img
+IMAGE = output/kernel8.img
 BOOT_SRC_DIR = src/bootloader
 KERNEL = kernel
-BOOT_MODULES = arm/mmu-basic libc/libc loader arm/irq drivers/mbox drivers/uart
+BOOT_MODULES = arm/mmu-basic libc/libc loader arm/irq drivers/timer drivers/mbox drivers/uart
 MODULES = testing/test
 MODULES += $(KERNEL)
 
 # Phony targets
 
-.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc
+.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc sync
 
 all: $(IMAGE)
 
@@ -21,16 +21,16 @@ clean:
 rebuild: clean all
 
 run: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 # -d int
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -S -s # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -S -s # -d int
 
 run-vnc: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -vnc :1,websocket=on # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -vnc :1,websocket=on # -d int
 
 debug-vnc: all
-	qemu-system-aarch64 -M raspi3b -kernel kernel8.img -serial tcp:localhost:4444 -S -s -vnc :1,websocket=on # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -S -s -vnc :1,websocket=on # -d int
 
 uart0:
 	nc -lkvp 4444
@@ -40,6 +40,9 @@ toolchain: toolchain/Dockerfile
 
 undef: $(BUILD_DIR)/$(MODULES_DIR)/kernel.ko
 	@$(ARMGNU)-readelf -s $< | grep UND || true
+
+sync:
+	rsync --delete -trv output/ rsync://$(RSYNC_SERVER):873/volume/
 
 # Empty recipes
 

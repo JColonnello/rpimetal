@@ -51,11 +51,12 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
 apt update && apt --no-install-recommends install -y autogen patch
 ENV target=aarch64-none-elf
+ENV output="/pkg/opt/$target/$target"
 ENV PATH="/opt/$target/bin:$PATH" 
 WORKDIR /build/obj
-COPY --from=cross /opt/aarch64-none-elf /opt/aarch64-none-elf
 COPY binutils-*.patch /
-RUN --mount=type=bind,from=source,source=/tarballs/root/binutils-gdb,target=/usr/local/src,rw pushd /usr/local/src && \
+RUN --mount=type=bind,from=cross,source=/opt/aarch64-none-elf,target=/opt/aarch64-none-elf \
+--mount=type=bind,from=source,source=/tarballs/root/binutils-gdb,target=/usr/local/src,rw pushd /usr/local/src && \
     cat /*.patch | patch -p1 && \
     autogen Makefile.def && \
     rm -r gdb readline && \
@@ -64,15 +65,16 @@ LDFLAGS="-Wl,--defsym=_close=0,--defsym=_lseek=0,--defsym=_read=0,--defsym=_writ
 # bear --append --output /opt/aarch64-none-elf/compile_commands.json -- make -j$[$(nproc) - 1] && \
 make -j$[$(nproc) - 1] && \
 make install DESTDIR=/build/pkg && \
-cp -ar /build/pkg/include/ /opt/aarch64-none-elf/aarch64-none-elf/ && \
-cp -ar /build/pkg/lib/ /opt/aarch64-none-elf/aarch64-none-elf/ && \
-cp -an /build/obj/*/lib*.a /opt/aarch64-none-elf/aarch64-none-elf/lib/ && \
+mkdir -p $output && \
+cp -ar /build/pkg/include/ $output/ && \
+cp -ar /build/pkg/lib/ $output/ && \
+cp -an /build/obj/*/lib*.a $output/lib/ && \
 rm -rf /build
 
 FROM base AS toolchain
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales
+apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password
@@ -89,7 +91,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 && echo "$SNIPPET" >> "/home/$UNAME/.bashrc"
 COPY --from=source /usr/local/src /usr/local/src
 COPY --from=compile /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
-COPY --from=libs /opt/aarch64-none-elf /opt/aarch64-none-elf
+COPY --from=cross /opt/aarch64-none-elf /opt/aarch64-none-elf
+COPY --from=libs /pkg/opt /opt
 # RUN cp -a /opt/aarch64-none-elf/compile_commands.json /usr/local/src/
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
 # Set the locale

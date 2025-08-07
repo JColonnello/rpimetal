@@ -23,17 +23,17 @@
 			]
 		}
 	},
-	"runArgs": ["--device=/dev/kvm"],
+	"runArgs": [
+		"--device=/dev/kvm"
+	],
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	"remoteUser": "rpi",
-
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Preserve bash history in a volume
 	"mounts": [
-      "source=rpimetal-bashhistory,target=/commandhistory,type=volume"
-  ]
+		"source=rpimetal-bashhistory,target=/commandhistory,type=volume"
+	]
 }

@@ -48,6 +48,7 @@ build/multiplex
 # Build tool files
 .cache/
 compile_commands.json
+output/
 
 # Toolchain tarballs
 toolchain/tarballs/

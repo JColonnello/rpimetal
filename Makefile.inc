@@ -5,6 +5,7 @@ LD=$(ARMGNU)-ld
 AS=$(ARMGNU)-gcc
 AR=$(ARMGNU)-ar
 
+RSYNC_SERVER = 192.168.0.199
 INC_DIRS = include
 override INC_FLAGS += $(addprefix -I,$(INC_DIRS))
 override LDFLAGS += -L/opt/aarch64-none-elf/lib/gcc/aarch64-none-elf/14.2.0/ -L/opt/aarch64-none-elf/aarch64-none-elf/lib/
