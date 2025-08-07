@@ -69,7 +69,7 @@ int mbox_call(unsigned char ch)
 
 void mbox_wait()
 {
-	while (mbox[1] != MBOX_RESPONSE)
+	while (!(mbox[1] & MBOX_RESPONSE))
 	{
 		/* wait for the response */
 		timer_microsleep(10);
@@ -81,4 +81,9 @@ unsigned mbox_read()
 	printf("You got mail!\n");
 	/* now read the response */
 	return *MBOX_READ;
+}
+
+void mbox_print()
+{
+	printf("Mailbox contents: (%u) bytes, status = %x\n", mbox[0], mbox[1]);
 }

@@ -47,3 +47,4 @@ extern volatile unsigned int mbox[36];
 int mbox_call(unsigned char ch);
 unsigned mbox_read();
 void mbox_wait();
+void mbox_print();

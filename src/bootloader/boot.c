@@ -74,6 +74,7 @@ int main(void)
 	boot_userdata.custom = &boot_data;
 	kernel_start = loader_search_symbol("_start");
 
+	timer_fini();
 	loader_switch_tcb(tcb);
 	kernel_jump();
 	return 0;

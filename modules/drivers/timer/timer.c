@@ -31,6 +31,16 @@ constructor static void timer_init(void)
 	asm("mrs %0, CNTFRQ_EL0" : "=r"(freq));
 }
 
+destructor void timer_fini(void)
+{
+	// Disable local timer
+	mreg32(TIMER_CTRL) = 0;
+	// Unregister the timer handler
+	irq_unregister(LOCAL_INTERRUPT, 11);
+	// Disable generic timer interrupt
+	mreg32(CORE0_INT_CTR) &= ~(1 << 5);
+}
+
 #define MAX_TIMERS 16
 typedef struct
 {
@@ -113,7 +123,7 @@ void timer_microsleep(unsigned long micros)
 	asm("msr CNTP_CVAL_EL0, %0\n"
 		"msr CNTP_CTL_EL0, %1\n"
 		:
-		: "r"(target), "r"(1));
+		: "r"(target), "r"(1l));
 	do
 	{
 		// Wait for the timer to expire
