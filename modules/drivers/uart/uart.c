@@ -207,12 +207,16 @@ constructor static void uart_init()
 	*UART0_FBRD = 0xB;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
 	*UART0_IFLS = IFLS_IFSEL_1_2 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
-	*UART0_IMSC = INT_RX | INT_TX;
-	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK; // enable UART, TX and RX with loopback
+	*UART0_IMSC = 0;
 
 	// The TX interrupt does not get signaled until sending something
-	*UART0_DR = '\n';
-	*UART0_CR &= ~CR_LBE_MASK; // disable loopback
+	// We disable interrupts, send a dummy character through loopback, and read it
+	// Then we disable loopback and enable interrupts
+	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK;
+	*UART0_DR = '\r';
+	*UART0_DR;
+	*UART0_CR &= ~CR_LBE_MASK;
+	*UART0_IMSC = INT_RX | INT_TX;
 }
 
 static inline void signal_tx()
