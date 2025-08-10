@@ -2,6 +2,7 @@
 //  change these a little bit for different behavior
 //
 ////////////////////////////////////////////////////////////////////////////////
+#include "drivers/uart.h"
 #include "stdlib.h"
 #include <attrib.h>
 #include <boot/custom.h>
@@ -64,6 +65,12 @@ static void timer_callback(unsigned timer, void *data)
 	printf("%s current time: %lu us\n", text, timer_monotonic());
 }
 
+static volatile bool uart_available = false;
+static void uart_callback(size_t available)
+{
+	uart_available = available > 0;
+}
+
 int kernel_start(struct boot_info *info, union boot_userdata userdata)
 {
 	struct boot_customdata *data = userdata.custom;
@@ -79,6 +86,7 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_init();
 	// lfb_showpicture(header_data, height, width);
 
+	uart_set_callback(uart_callback);
 	// Wait 200ms and print current time
 	timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)
@@ -86,6 +94,13 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 		timer_millisleep(2000);
 		unsigned long time = timer_monotonic();
 		printf("Sleep current time: %lu us\n", time);
+		static char s[128];
+		if (uart_available)
+		{
+			size_t n = uart_recv_buffer(s, sizeof(s));
+			uart_available = false; // reset the flag
+			printf("Received %lu bytes: %.*s\n", n, (int)n, s);
+		}
 	}
 
 	return 0;

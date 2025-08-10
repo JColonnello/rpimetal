@@ -165,7 +165,7 @@ static void handle_uart0(void *data)
 		// If there is no more space in the buffer, me mask the interrupt until there is space
 		if (i == 0)
 			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
-		uart_callback(i);
+		uart_callback(sizeof(raw_rx_buffer) - i);
 	}
 	if (mis & INT_TX)
 	{
@@ -272,6 +272,14 @@ size_t uart_send_buffer(const char *s, size_t n)
 {
 	size_t count = ring_buffer_queue_arr(&uart_tx_buffer, s, n);
 	signal_tx();
+	return count;
+}
+
+size_t uart_recv_buffer(char *s, size_t n)
+{
+	size_t count = ring_buffer_dequeue_arr(&uart_rx_buffer, s, n);
+	if (count > 0)
+		signal_rx();
 	return count;
 }
 

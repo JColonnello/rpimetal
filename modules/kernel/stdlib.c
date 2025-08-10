@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/unistd.h>
 
 int _fstat(int fildes, struct stat *buf)
 {
@@ -55,8 +56,23 @@ int _isatty(int fd)
 
 int _write(int fd, const void *buf, size_t count)
 {
+	if (fd != 1 && fd != 2)
+	{
+		errno = EBADF;
+		return -1;
+	}
 	uart_send_buffer(buf, count);
 	return count;
+}
+
+int _read(int fd, void *buf, size_t nbyte)
+{
+	if (fd != 0)
+	{
+		errno = EBADF;
+		return -1;
+	}
+	return uart_recv_buffer(buf, nbyte);
 }
 
 int _close(int fd)
