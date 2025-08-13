@@ -54,6 +54,16 @@ static inline void ring_buffer_init(ring_buffer *buffer, char *buf, size_t buf_s
 }
 
 /**
+ * Returns a pointer to the raw buffer used by the ring buffer.
+ * @param buffer The ring buffer for which the raw buffer should be returned.
+ * @return A pointer to the raw buffer.
+ */
+static inline char *ring_buffer_get_raw_buffer(ring_buffer *buffer)
+{
+	return buffer->start;
+}
+
+/**
  * Returns the size of the ring buffer.
  * @param buffer The buffer whose size should be returned.
  * @return The size of the ring buffer.
@@ -150,6 +160,9 @@ static inline size_t ring_buffer_capacity(ring_buffer *buffer)
  */
 static inline size_t ring_buffer_queue_arr(ring_buffer *buffer, const char *data, size_t size)
 {
+	if (size == 0)
+		return 0;
+
 	size_t capacity = ring_buffer_capacity(buffer);
 
 	// Check if the size to add is larger than the capacity of the buffer
@@ -244,6 +257,8 @@ static inline size_t ring_buffer_dequeue_arr(ring_buffer *buffer, char *data, si
 	}
 
 	CLIP(buffer, buffer->head);
+	if (buffer->head == buffer->tail)
+		buffer->empty = true; // Buffer is now empty
 	return size;
 }
 

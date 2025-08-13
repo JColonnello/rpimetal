@@ -5,7 +5,7 @@ MODULES_DIR = modules
 IMAGE = output/kernel8.img
 BOOT_SRC_DIR = src/bootloader
 KERNEL = kernel
-BOOT_MODULES = arm/mmu-basic libc/libc loader arm/irq drivers/timer drivers/mbox drivers/uart
+BOOT_MODULES = arm/mmu-basic libc/libc loader arm/irq drivers/timer drivers/mbox sys/mux drivers/uart
 MODULES = testing/test
 MODULES += $(KERNEL)
 
@@ -96,7 +96,7 @@ $(BUILD_DIR)/%.s.o: %.s
 .PHONY:
 multiplex: $(BUILD_DIR)/multiplex
 $(BUILD_DIR)/multiplex: toolchain/multiplex.c
-	gcc -o $@ $<
+	gcc -g -o $@ $<
 
 ifneq (clean,$(MAKECMDGOALS))
 -include $(OBJ_FILES:%.o=%.d)

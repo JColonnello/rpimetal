@@ -2,17 +2,16 @@
 //  change these a little bit for different behavior
 //
 ////////////////////////////////////////////////////////////////////////////////
-#include "drivers/uart.h"
 #include "stdlib.h"
 #include <attrib.h>
 #include <boot/custom.h>
 #include <drivers/display.h>
 #include <drivers/timer.h>
+#include <drivers/uart.h>
 #include <utils.h>
 // #include <resources/zorzal.h>
 #include <drivers/irq.h>
 #include <stdio.h>
-#include <sys/_intsup.h>
 #include <sys/reent.h>
 
 //// callbacks
@@ -86,7 +85,7 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_init();
 	// lfb_showpicture(header_data, height, width);
 
-	uart_set_callback(uart_callback);
+	uart_set_rx_callback(uart_callback);
 	// Wait 200ms and print current time
 	timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)

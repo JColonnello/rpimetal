@@ -1,3 +1,4 @@
+#include "sys/mux.h"
 #include <attrib.h>
 #include <drivers/uart.h>
 #include <errno.h>
@@ -28,7 +29,21 @@ void *_sbrk(intptr_t increment)
 
 int _write(int fd, const void *buf, size_t count)
 {
-	uart_send_buffer(buf, count);
+	int channel;
+	switch (fd)
+	{
+	case 1:
+		channel = 0;
+		break;
+	case 2:
+		channel = 1;
+		break;
+	default:
+		errno = EBADF;
+		return -1;
+	}
+	mux_send(channel, buf, count);
+	uart_send_buffer(NULL, 0); // Flush output
 	return count;
 }
 

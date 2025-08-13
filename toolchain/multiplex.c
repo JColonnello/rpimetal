@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #define MAX_CHANNELS 256
-#define MAX_PACKET_SIZE 65535
+#define MAX_PACKET_SIZE 256
 #define HEADER_SIZE 4
 
 typedef struct
@@ -32,6 +32,7 @@ void signal_handler(int sig)
 
 void cleanup()
 {
+	fputs("Exiting\n", stderr);
 	for (int i = 0; i < num_channels; i++)
 	{
 		if (channels[i].pid > 0)
@@ -56,6 +57,7 @@ int parse_config(const char *config_path)
 		return -1;
 	}
 
+	fputs("Config:\n", stderr);
 	char line[1024];
 	while (fgets(line, sizeof(line), file) && num_channels < MAX_CHANNELS)
 	{
@@ -78,6 +80,8 @@ int parse_config(const char *config_path)
 		channels[num_channels].pid = -1;
 		channels[num_channels].stdin_fd = -1;
 		channels[num_channels].stdout_fd = -1;
+
+		fprintf(stderr, "\tChannel %d: %s\n", channel, command);
 		num_channels++;
 	}
 
@@ -148,13 +152,21 @@ int find_channel(int16_t channel)
 
 int handle_stdin_packet()
 {
-	uint8_t header[HEADER_SIZE];
+	static uint8_t header[HEADER_SIZE];
+	static int bytes_read, count = 0;
 
 	// Read packet header
-	if (read(STDIN_FILENO, header, HEADER_SIZE) != HEADER_SIZE)
+	while (HEADER_SIZE - count > 0)
 	{
-		return -1; // EOF or error
+		bytes_read = read(STDIN_FILENO, &header[count], HEADER_SIZE - count);
+		if (bytes_read <= 0)
+		{
+			perror("read stdin header");
+			return -1; // EOF or error
+		}
+		count += bytes_read;
 	}
+	count = 0;
 
 	int16_t channel = *(int16_t *)header;
 	uint16_t length = *(uint16_t *)(header + 2);
@@ -165,29 +177,35 @@ int handle_stdin_packet()
 	{
 		// Unknown channel, skip packet
 		fprintf(stderr, "Unknown channel %d, skipping packet\n", channel);
-		char buffer[MAX_PACKET_SIZE];
+		static char buffer[MAX_PACKET_SIZE];
 		uint16_t remaining = length;
 		while (remaining > 0)
 		{
 			int to_read = remaining > sizeof(buffer) ? sizeof(buffer) : remaining;
-			int bytes_read = read(STDIN_FILENO, buffer, to_read);
+			bytes_read = read(STDIN_FILENO, buffer, to_read);
 			if (bytes_read <= 0)
+			{
+				perror("read stdin skip");
 				return -1;
+			}
 			remaining -= bytes_read;
 		}
 		return 0;
 	}
 
-	// fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
+	fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
 	// Forward packet data to subprocess
 	uint16_t remaining = length;
-	char buffer[4096];
+	char buffer[MAX_PACKET_SIZE];
 	while (remaining > 0)
 	{
 		int to_read = remaining > sizeof(buffer) ? sizeof(buffer) : remaining;
 		int bytes_read = read(STDIN_FILENO, buffer, to_read);
 		if (bytes_read <= 0)
+		{
+			perror("read stdin");
 			return -1;
+		}
 
 		if (write(channels[idx].stdin_fd, buffer, bytes_read) != bytes_read)
 		{
@@ -208,6 +226,7 @@ int handle_subprocess_output(int idx)
 	if (bytes_read <= 0)
 	{
 		// Subprocess closed stdout or error
+		perror("read from subprocess");
 		return -1;
 	}
 
@@ -216,6 +235,7 @@ int handle_subprocess_output(int idx)
 	*(int16_t *)header = channels[idx].channel;
 	*(uint16_t *)(header + 2) = bytes_read;
 
+	fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
 	// Write header and data to stdout
 	if (write(STDOUT_FILENO, header, HEADER_SIZE) != HEADER_SIZE ||
 		write(STDOUT_FILENO, buffer, bytes_read) != bytes_read)
@@ -234,6 +254,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: %s <config_file>\n", argv[0]);
 		return 1;
 	}
+	fputs("Starting\n", stderr);
 
 	signal(SIGTERM, signal_handler);
 	signal(SIGINT, signal_handler);

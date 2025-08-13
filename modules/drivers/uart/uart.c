@@ -114,7 +114,8 @@ static ring_buffer uart_rx_buffer, uart_tx_buffer;
 static void _nothing(size_t _)
 {
 }
-static void (*uart_callback)(size_t available) = _nothing;
+static void (*uart_rx_callback)(size_t available) = _nothing;
+static void (*uart_tx_callback)(size_t available) = _nothing;
 
 static void set_clock(unsigned long freq)
 {
@@ -152,33 +153,61 @@ static void map_pins()
 
 static void handle_uart0(void *data)
 {
-	uint32_t mis = *UART0_MIS, flag = *UART0_FR;
-	int i;
-	if (mis & INT_RX)
+	uint32_t flag = *UART0_FR;
+	unsigned i;
+
+	// If there is nothing to read, skip
+	if (flag & FR_RXFE_MASK)
+		goto tx;
+
+	do
 	{
-		for (i = ring_buffer_capacity(&uart_rx_buffer); !(flag & 0x10) && i > 0; i--)
+		i = ring_buffer_capacity(&uart_rx_buffer);
+		// If there is data to process, signal the callback
+		if (sizeof(raw_rx_buffer) - i > 0)
+			uart_rx_callback(sizeof(raw_rx_buffer) - i);
+		// If there is no more space in the buffer, me mask the interrupt until there is space
+		if (i == 0)
+		{
+			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
+			break;
+		}
+
+		do
 		{
 			char c = (char)(*UART0_DR);
 			ring_buffer_queue_nc(&uart_rx_buffer, c);
 			flag = *UART0_FR;
-		}
-		// If there is no more space in the buffer, me mask the interrupt until there is space
-		if (i == 0)
-			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
-		uart_callback(sizeof(raw_rx_buffer) - i);
-	}
-	if (mis & INT_TX)
+			i--;
+		} while (!(flag & FR_RXFE_MASK) && i > 0);
+	} while (!(flag & FR_RXFE_MASK));
+
+tx:
+	// If there is no space to send, skip
+	if (flag & FR_TXFF_MASK)
+		return;
+
+	do
 	{
-		for (i = ring_buffer_num_items(&uart_tx_buffer); !(flag & 0x20) && i > 0; i--)
+		i = ring_buffer_num_items(&uart_tx_buffer);
+		// If there is space available, signal the callback
+		if (sizeof(raw_tx_buffer) - i > 0)
+			uart_tx_callback(sizeof(raw_tx_buffer) - i);
+		// If there is no more data in the buffer, me mask the interrupt until there is data
+		if (i == 0)
+		{
+			*UART0_IMSC &= ~INT_TX; // disable TX interrupt
+			return;
+		}
+
+		do
 		{
 			char c = ring_buffer_dequeue_nc(&uart_tx_buffer);
 			*UART0_DR = c;
 			flag = *UART0_FR;
-		}
-		// If there is nothing more to send, we mask the interrupt until there is something to send
-		if (i == 0)
-			*UART0_IMSC &= ~INT_TX; // disable TX interrupt
-	}
+			i--;
+		} while (!(flag & FR_TXFF_MASK) && i > 0);
+	} while (!(flag & FR_TXFF_MASK));
 }
 
 /**
@@ -213,8 +242,8 @@ constructor static void uart_init()
 	// We disable interrupts, send a dummy character through loopback, and read it
 	// Then we disable loopback and enable interrupts
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK;
-	*UART0_DR = '\r';
-	*UART0_DR;
+	for (int i = 4; i--;)
+		*UART0_DR = 0;
 	*UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
 }
@@ -300,7 +329,22 @@ void uart_hex(unsigned int d)
 	}
 }
 
-void uart_set_callback(void (*handler)(size_t available))
+void uart_set_rx_callback(void (*handler)(size_t available))
 {
-	uart_callback = handler;
+	uart_rx_callback = handler;
+}
+
+void uart_set_tx_callback(void (*handler)(size_t available))
+{
+	uart_tx_callback = handler;
+}
+
+size_t uart_rx_available()
+{
+	return ring_buffer_num_items(&uart_rx_buffer);
+}
+
+size_t uart_tx_available()
+{
+	return ring_buffer_capacity(&uart_tx_buffer);
 }
