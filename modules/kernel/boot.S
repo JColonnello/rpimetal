@@ -20,6 +20,7 @@ _start:
 	bl atexit
 
 	// Call constructors
+	ldp x0, x1, [sp]
 	bl libc_init_array
 
 	// Call main and exit with returned status code

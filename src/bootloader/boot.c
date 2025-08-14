@@ -14,9 +14,6 @@
 FILE_FROM_SYMBOL_FUNC_DECL(testing_test);
 FILE_FROM_SYMBOL_FUNC_DECL(kernel);
 
-void init()
-{
-}
 void fini()
 {
 }
@@ -33,9 +30,11 @@ static struct boot_customdata boot_data;
 static struct boot_info boot_info;
 static union boot_userdata boot_userdata;
 static start_function_type kernel_start;
+static struct tls_data *tcb;
 
-static void noreturn kernel_jump()
+void noreturn kernel_jump()
 {
+	loader_switch_tcb(tcb);
 	//Inline asm equivalent to kernel_start(&boot_info, boot_userdata) without link
 	asm("mov x0, %0\n"
 		"ldr x1, %1\n"
@@ -55,7 +54,6 @@ int main(void)
 		{.name = "__stack", .address = (void *)0x80000},
 		{.name = "__bss_start__", .address = NULL},
 		{.name = "__bss_end__", .address = NULL},
-		{.name = "_init", .address = init},
 		{.name = "_fini", .address = fini},
 	};
 
@@ -67,7 +65,7 @@ int main(void)
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(kernel), "build/modules/kernel.ko");
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(testing_test), "build/modules/testing/test.ko");
 	loader_print_tls_layout(tls_schema);
-	struct tls_data *tcb = loader_create_tcb();
+	tcb = loader_create_tcb();
 	// once everything is patched, we should be able to run test_function
 	// which should call our callback!
 
@@ -83,8 +81,5 @@ int main(void)
 	boot_userdata.custom = &boot_data;
 	kernel_start = loader_search_symbol("_start");
 
-	timer_fini();
-	loader_switch_tcb(tcb);
-	kernel_jump();
 	return 0;
 }

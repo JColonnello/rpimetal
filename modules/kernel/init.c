@@ -12,6 +12,7 @@
 
 /* Handle ELF .{pre_init,init,fini}_array sections.  */
 #include <attrib.h>
+#include <boot.h>
 #include <sys/types.h>
 
 /* These magic symbols are provided by the linker.  */
@@ -19,14 +20,13 @@ weak extern void (*__preinit_array_start[])(void);
 weak extern void (*__preinit_array_end[])(void);
 weak extern void (*__init_array_start[])(void);
 weak extern void (*__init_array_end[])(void);
-weak extern void _init(void);
 
-void _init(void)
+weak void _init(struct boot_info *info, union boot_userdata userdata)
 {
 }
 
 /* Iterate over all the init routines.  */
-void libc_init_array(void)
+void libc_init_array(struct boot_info *info, union boot_userdata userdata)
 {
 	size_t count;
 	size_t i;
@@ -35,7 +35,7 @@ void libc_init_array(void)
 	for (i = 0; i < count; i++)
 		__preinit_array_start[i]();
 
-	_init();
+	_init(info, userdata);
 
 	count = __init_array_end - __init_array_start;
 	for (i = 0; i < count; i++)

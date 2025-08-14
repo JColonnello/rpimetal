@@ -88,11 +88,13 @@ int _close(int fd)
 	}
 }
 
+extern void noreturn kernel_jump();
 void _exit(int status)
 {
-	// Unprintable
-	// printf("Exitting kernel: %d\n", status);
-	proc_hang();
+	if (status == 0)
+		kernel_jump();
+	else
+		proc_hang();
 }
 
 long sysconf(int name)
