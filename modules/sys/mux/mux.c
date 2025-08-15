@@ -1,4 +1,5 @@
 #include "drivers/uart.h"
+#include <attrib.h>
 #include <ringbuffer.h>
 #include <sglib.h>
 #include <stddef.h>
@@ -11,6 +12,8 @@ typedef struct channel_tree
 	int16_t channel;
 	ring_buffer rx, tx;
 	bool complete;
+	void (*rx_callback)(size_t available);
+	void (*tx_callback)(size_t available);
 
 	char color;
 	struct channel_tree *left, *right;
@@ -26,6 +29,20 @@ static channel_tree *channels = NULL;
 
 static char rx_mesg_buf[MAX_MESSAGE_SIZE + HEADER_SIZE];
 static unsigned rx_mesg_bytes;
+
+constructor void _stdio_channels()
+{
+	mux_channel_add(0, 1024, false);
+	mux_channel_add(1, 1024, false);
+	uart_set_rx_callback(mux_process_input);
+	uart_set_tx_callback(mux_process_output);
+}
+
+static channel_tree *search_channel(int16_t channel)
+{
+	channel_tree *search = &(channel_tree){.channel = channel};
+	return sglib_channel_tree_find_member(channels, search);
+}
 
 void mux_process_input(size_t available)
 {
@@ -54,7 +71,7 @@ void mux_process_input(size_t available)
 		remaining = curr_mesg_len + HEADER_SIZE - rx_mesg_bytes;
 		if (remaining > 0)
 		{
-			if (available > remaining)
+			if (available >= remaining)
 			{
 				size_t read = uart_recv_buffer(&rx_mesg_buf[rx_mesg_bytes], remaining);
 				rx_mesg_bytes += read;
@@ -64,10 +81,7 @@ void mux_process_input(size_t available)
 				return;
 		}
 
-		channel_tree *channel = &(channel_tree){
-			.channel = curr_mesg_channel,
-		};
-		channel = sglib_channel_tree_find_member(channels, channel);
+		channel_tree *channel = search_channel(curr_mesg_channel);
 		if (channel == NULL)
 		{
 			rx_mesg_bytes = 0;
@@ -77,6 +91,8 @@ void mux_process_input(size_t available)
 		{
 			ring_buffer_queue_arr(&channel->rx, rx_mesg_buf + HEADER_SIZE, curr_mesg_len);
 			rx_mesg_bytes = 0;
+			if (channel->rx_callback)
+				channel->rx_callback(ring_buffer_num_items(&channel->rx));
 			continue;
 		}
 		else
@@ -106,6 +122,8 @@ void mux_process_output(size_t available)
 		*(int16_t *)tx_buf = curr_mesg_channel;
 		*(uint16_t *)(tx_buf + 2) = curr_mesg_len;
 		ring_buffer_dequeue_arr(&tx_next->tx, tx_buf + HEADER_SIZE, curr_mesg_len);
+		if (tx_next->tx_callback)
+			tx_next->tx_callback(ring_buffer_capacity(&tx_next->tx));
 		available -= uart_send_buffer(tx_buf, curr_mesg_len + HEADER_SIZE);
 	}
 	tx_next = sglib_channel_tree_it_init_inorder(&tx_it, channels);
@@ -113,14 +131,15 @@ void mux_process_output(size_t available)
 
 bool mux_channel_add(int16_t channel, size_t buffer_size, bool complete)
 {
-	channel_tree *new_channel = &(channel_tree){.channel = channel};
-	if (sglib_channel_tree_find_member(channels, new_channel))
+	channel_tree *new_channel = search_channel(channel);
+	if (new_channel)
 		return false; // Channel already exists
 
 	new_channel = malloc(sizeof(channel_tree));
-	new_channel->channel = channel;
-	new_channel->complete = complete;
-
+	*new_channel = (channel_tree){
+		.channel = channel,
+		.complete = complete,
+	};
 	ring_buffer_init(&new_channel->rx, malloc(buffer_size), buffer_size);
 	ring_buffer_init(&new_channel->tx, malloc(buffer_size), buffer_size);
 
@@ -146,8 +165,7 @@ bool mux_channel_remove(int16_t channel)
 
 size_t mux_send(int16_t channel, const char *data, size_t size)
 {
-	channel_tree *channel_node = &(channel_tree){.channel = channel};
-	channel_node = sglib_channel_tree_find_member(channels, channel_node);
+	channel_tree *channel_node = search_channel(channel);
 	if (!channel_node)
 		return 0; // Channel does not exist
 
@@ -158,12 +176,49 @@ size_t mux_send(int16_t channel, const char *data, size_t size)
 	return written;
 }
 
-size_t mux_read(int16_t channel, char *buffer, size_t size)
+size_t mux_recv(int16_t channel, char *buffer, size_t size)
 {
-	channel_tree *channel_node = &(channel_tree){.channel = channel};
-	channel_node = sglib_channel_tree_find_member(channels, channel_node);
+	channel_tree *channel_node = search_channel(channel);
 	if (!channel_node)
 		return 0; // Channel does not exist
 
 	return ring_buffer_dequeue_arr(&channel_node->rx, buffer, size);
+}
+
+bool mux_set_rx_callback(int16_t channel, void (*handler)(size_t available))
+{
+	channel_tree *channel_node = search_channel(channel);
+	if (!channel_node)
+		return false; // Channel does not exist
+
+	channel_node->rx_callback = handler;
+	return true;
+}
+
+bool mux_set_tx_callback(int16_t channel, void (*handler)(size_t available))
+{
+	channel_tree *channel_node = search_channel(channel);
+	if (!channel_node)
+		return false; // Channel does not exist
+
+	channel_node->tx_callback = handler;
+	return true;
+}
+
+size_t mux_rx_available(int16_t channel)
+{
+	channel_tree *channel_node = search_channel(channel);
+	if (!channel_node)
+		return 0; // Channel does not exist
+
+	return ring_buffer_num_items(&channel_node->rx);
+}
+
+size_t mux_tx_available(int16_t channel)
+{
+	channel_tree *channel_node = search_channel(channel);
+	if (!channel_node)
+		return 0; // Channel does not exist
+
+	return ring_buffer_capacity(&channel_node->tx);
 }

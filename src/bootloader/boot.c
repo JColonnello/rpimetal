@@ -18,14 +18,6 @@ void fini()
 {
 }
 
-constructor void _stdio_channels()
-{
-	mux_channel_add(0, 1024, false);
-	mux_channel_add(1, 1024, false);
-	uart_set_rx_callback(mux_process_input);
-	uart_set_tx_callback(mux_process_output);
-}
-
 static struct boot_customdata boot_data;
 static struct boot_info boot_info;
 static union boot_userdata boot_userdata;

@@ -33,7 +33,33 @@ size_t mux_send(int16_t channel, const char *data, size_t size);
  * @param size The amount of bytes to read at most
  * @return The amount of bytes received
  */
-size_t mux_read(int16_t channel, char *buffer, size_t size);
+size_t mux_recv(int16_t channel, char *buffer, size_t size);
+/**
+ * Sets the callback for when data is available to read
+ * @param channel The channel number
+ * @param handler The callback function
+ * @return true if the callback was set successfully, false otherwise
+ */
+bool mux_set_rx_callback(int16_t channel, void (*handler)(size_t available));
+/**
+ * Sets the callback for when data can be written
+ * @param channel The channel number
+ * @param handler The callback function
+ * @return true if the callback was set successfully, false otherwise
+ */
+bool mux_set_tx_callback(int16_t channel, void (*handler)(size_t available));
+/**
+ * Gets the amount of data available to read
+ * @param channel The channel number
+ * @return The amount of data available to read
+ */
+size_t mux_rx_available(int16_t channel);
+/**
+ * Gets the amount of space available to write
+ * @param channel The channel number
+ * @return The amount of space available to write
+ */
+size_t mux_tx_available(int16_t channel);
 
 void mux_process_input(size_t available);
 void mux_process_output(size_t available);
