@@ -1864,7 +1864,7 @@ example: #define SGLIB___RBTREE_SET_PARENT(x, v) {(x)->parent = (v);}
 
 #define SGLIB___RBTREE_FIX_INSERTION_DISCREPANCY(type, tree, leftt, rightt, bits, RED, BLACK) \
 	{ \
-		type *t, *tl, *a, *b, *c, *ar, *bl, *br, *cl, *cr; \
+		type *t, *tl, *a, *b, *c, *br, *cl, *cr; \
 		t = *tree; \
 		tl = t->leftt; \
 		if (t->rightt != NULL && SGLIB___GET_VALUE(t->rightt->bits) == RED) \
@@ -1901,8 +1901,6 @@ example: #define SGLIB___RBTREE_SET_PARENT(x, v) {(x)->parent = (v);}
 				{ \
 					a = t; \
 					b = tl; \
-					ar = a->rightt; \
-					bl = b->leftt; \
 					c = b->rightt; \
 					cl = c->leftt; \
 					cr = c->rightt; \
@@ -1920,10 +1918,9 @@ example: #define SGLIB___RBTREE_SET_PARENT(x, v) {(x)->parent = (v);}
 
 #define SGLIB___RBTREE_FIX_DELETION_DISCREPANCY(type, tree, leftt, rightt, bits, RED, BLACK, res) \
 	{ \
-		type *t, *a, *b, *c, *d, *ar, *bl, *br, *cl, *cr, *dl, *dr; \
+		type *t, *a, *b, *c, *d, *bl, *br, *cl, *cr, *dl, *dr; \
 		t = a = *tree; \
 		assert(t != NULL); \
-		ar = a->rightt; \
 		b = t->leftt; \
 		if (b == NULL) \
 		{ \
@@ -2299,15 +2296,14 @@ example: #define SGLIB___RBTREE_SET_PARENT(x, v) {(x)->parent = (v);}
 	int sglib_##type##_len(type *t) \
 	{ \
 		int n; \
-		type *e; \
 		n = 0; \
-		SGLIB_BIN_TREE_MAP_ON_ELEMENTS(type, t, e, left, right, n++); \
+		SGLIB_BIN_TREE_MAP_ON_ELEMENTS(type, t, e, left, right, (e = e, n++)); \
 		return (n); \
 	} \
 \
 	void sglib__##type##_it_compute_current_elem(struct sglib_##type##_iterator *it) \
 	{ \
-		int i, j, cmp; \
+		int i, j; \
 		type *s, *eqt; \
 		int (*subcomparator)(type *, type *); \
 		eqt = it->equalto; \

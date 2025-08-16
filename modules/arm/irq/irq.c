@@ -225,7 +225,10 @@ bool irq_register(void (*handler)(void *), void *param, irq_type type, unsigned 
 		.handler = handler,
 		.param = param,
 	};
+
+	irq_disable();
 	SGLIB_ARRAY_SINGLE_HEAP_SORT(irq_handler, core_interrupts, MAX_HANDLERS, HANDLER_ORD);
+	irq_enable();
 
 	switch (type)
 	{

@@ -160,27 +160,29 @@ static void handle_uart0(void *data)
 	if (flag & FR_RXFE_MASK)
 		goto tx;
 
-	do
+	i = ring_buffer_capacity(&uart_rx_buffer);
+	for (;;)
 	{
+		while (!(flag & FR_RXFE_MASK) && i > 0)
+		{
+			char c = (char)(*UART0_DR);
+			ring_buffer_queue_nc(&uart_rx_buffer, c);
+			flag = *UART0_FR;
+			i--;
+		}
+		// Signal the callback
+		uart_rx_callback(sizeof(raw_rx_buffer) - i);
+		// If there is nothing else to read, stop
+		if (flag & FR_RXFE_MASK)
+			break;
 		i = ring_buffer_capacity(&uart_rx_buffer);
-		// If there is data to process, signal the callback
-		if (sizeof(raw_rx_buffer) - i > 0)
-			uart_rx_callback(sizeof(raw_rx_buffer) - i);
 		// If there is no more space in the buffer, me mask the interrupt until there is space
 		if (i == 0)
 		{
 			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
 			break;
 		}
-
-		do
-		{
-			char c = (char)(*UART0_DR);
-			ring_buffer_queue_nc(&uart_rx_buffer, c);
-			flag = *UART0_FR;
-			i--;
-		} while (!(flag & FR_RXFE_MASK) && i > 0);
-	} while (!(flag & FR_RXFE_MASK));
+	}
 
 tx:
 	// If there is no space to send, skip
@@ -192,7 +194,10 @@ tx:
 		i = ring_buffer_num_items(&uart_tx_buffer);
 		// If there is space available, signal the callback
 		if (sizeof(raw_tx_buffer) - i > 0)
+		{
 			uart_tx_callback(sizeof(raw_tx_buffer) - i);
+			i = ring_buffer_num_items(&uart_tx_buffer);
+		}
 		// If there is no more data in the buffer, me mask the interrupt until there is data
 		if (i == 0)
 		{
