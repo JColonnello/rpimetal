@@ -3,11 +3,13 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 #include "stdlib.h"
+#include "sys/mux.h"
 #include <attrib.h>
 #include <boot/custom.h>
 #include <drivers/display.h>
 #include <drivers/timer.h>
 #include <drivers/uart.h>
+#include <sys/unistd.h>
 #include <utils.h>
 // #include <resources/zorzal.h>
 #include <drivers/irq.h>
@@ -89,7 +91,7 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_init();
 	// lfb_showpicture(header_data, height, width);
 
-	uart_set_rx_callback(uart_callback);
+	mux_set_rx_callback(0, uart_callback);
 	// Wait 200ms and print current time
 	timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)
@@ -100,7 +102,7 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 		static char s[128];
 		if (uart_available)
 		{
-			size_t n = uart_recv_buffer(s, sizeof(s));
+			size_t n = read(0, s, sizeof(s));
 			uart_available = false; // reset the flag
 			printf("Received %lu bytes: %.*s\n", n, (int)n, s);
 		}

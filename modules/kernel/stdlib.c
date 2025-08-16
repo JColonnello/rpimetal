@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <sys/mux.h>
 #include <sys/stat.h>
 #include <sys/unistd.h>
 
@@ -56,13 +57,22 @@ int _isatty(int fd)
 
 int _write(int fd, const void *buf, size_t count)
 {
-	if (fd != 1 && fd != 2)
+	int channel;
+	switch (fd)
 	{
+	case 1:
+		channel = 0;
+		break;
+	case 2:
+		channel = 1;
+		break;
+	default:
 		errno = EBADF;
 		return -1;
 	}
-	uart_send_buffer(buf, count);
-	return count;
+	size_t written = mux_send(channel, buf, count);
+	uart_send_buffer(NULL, 0); // Flush output
+	return written;
 }
 
 int _read(int fd, void *buf, size_t nbyte)
@@ -72,7 +82,9 @@ int _read(int fd, void *buf, size_t nbyte)
 		errno = EBADF;
 		return -1;
 	}
-	return uart_recv_buffer(buf, nbyte);
+
+	uart_recv_buffer(NULL, 0); // Flush input
+	return mux_recv(fd, buf, nbyte);
 }
 
 int _close(int fd)
