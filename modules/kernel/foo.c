@@ -92,20 +92,19 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// lfb_showpicture(header_data, height, width);
 
 	mux_set_rx_callback(0, uart_callback);
-	// Wait 200ms and print current time
-	timer_register(1000000, true, timer_callback, "Callback");
+	// timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)
 	{
-		timer_millisleep(2000);
-		unsigned long time = timer_monotonic();
-		printf("Sleep current time: %lu us\n", time);
 		static char s[128];
 		if (uart_available)
 		{
+			unsigned long time = timer_monotonic();
+			printf("Current time: %lu us\n", time);
 			size_t n = read(0, s, sizeof(s));
 			uart_available = false; // reset the flag
 			printf("Received %lu bytes: %.*s\n", n, (int)n, s);
 		}
+		asm("wfi");
 	}
 
 	return 0;

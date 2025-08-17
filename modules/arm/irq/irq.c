@@ -109,8 +109,14 @@ void irq_handle(void)
 		printf("Unhandled basic interrupts: 0x%04x\n", source & ~handled);
 	bool pending_gpu1 = source & (1 << 8), pending_gpu2 = source & (1 << 9);
 
+	/* 
+	Citing BCM2837-ARM-Peripherals chapter 7.2:
+		The 'selected GPU interrupts' on the basic pending registers are NOT taken into account
+		for these two [GPU pending] bits.
+	In QEMU they are incorrectly taken into account, so we patch it by counting them as already handled
+	*/
 	if (pending_gpu1)
-		for (handled = 0, source = mreg32(IRQ_PENDING_1);
+		for (handled = 0xC0680, source = mreg32(IRQ_PENDING_1);
 			 i < MAX_HANDLERS && core_interrupts[i].enabled && core_interrupts[i].type == GPU_INTERRUPT1;
 			 i++)
 		{
@@ -125,7 +131,7 @@ void irq_handle(void)
 		printf("Unhandled GPU interrupts 0-31: 0x%04x\n", source & ~handled);
 
 	if (pending_gpu2)
-		for (handled = 0, source = mreg32(IRQ_PENDING_2); i < MAX_HANDLERS && core_interrupts[i].enabled; i++)
+		for (handled = 0x43E00000, source = mreg32(IRQ_PENDING_2); i < MAX_HANDLERS && core_interrupts[i].enabled; i++)
 		{
 			if (core_interrupts[i].mask & source)
 			{
