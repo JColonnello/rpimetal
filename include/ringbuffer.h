@@ -146,7 +146,7 @@ static inline size_t ring_buffer_capacity(ring_buffer *buffer)
 {
 	if (buffer->empty)
 		return buffer->end - buffer->start;
-	if (buffer->head > buffer->tail)
+	if (buffer->head >= buffer->tail)
 		return buffer->head - buffer->tail;
 	return buffer->end - buffer->tail + buffer->head - buffer->start;
 }
