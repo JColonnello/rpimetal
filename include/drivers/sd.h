@@ -1,7 +1,12 @@
 #ifndef SDCARD_H
 #define SDCARD_H
-#include "rpi-smartstart.h" // Provides all basic hardware access and printhandler definition and HANDLE type
-#include <time.h>           // C standard for time needed for that and struct tm
+#include <stdbool.h>
+#include <time.h> // C standard for time needed for that and struct tm
+
+/* print handler function proto type */
+/* you can make a UART or SCREEN version and direct output to that call */
+typedef int (*printhandler)(const char *fmt, ...);
+typedef uint32_t HANDLE; // Handle is an unsigned 32 bit
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++}
 {																			}

@@ -210,8 +210,7 @@ struct __attribute__((__packed__, aligned(4))) regCONTROL2
 		struct __attribute__((__packed__, aligned(1)))
 		{
 			volatile const unsigned ACNOX_ERR : 1; // @0		Auto command not executed due to an error **read only
-			volatile const unsigned
-				ACTO_ERR : 1; // @1		Timeout occurred during auto command execution **read only
+			volatile const unsigned ACTO_ERR : 1;  // @1		Timeout occurred during auto command execution **read only
 			volatile const unsigned
 				ACCRC_ERR : 1; // @2		Command CRC error occurred during auto command execution **read only
 			volatile const unsigned
@@ -1970,7 +1969,7 @@ static bool LoadDrivePartition(printhandler prn_basic)
 			bpb->TotalSectors32 - bpb->ReservedSectorCount - (bpb->FSTypeData.fat32.FATSize32 * bpb->NumFATs);
 		if (prn_basic)
 			prn_basic(
-				"FAT32 Volume Label: %s, ID: %08x\n",
+				"FAT32 Volume Label: %.11s, ID: %08x\n",
 				bpb->FSTypeData.fat32.BS_VolumeLabel,
 				(unsigned int)bpb->FSTypeData.fat32.BS_VolumeID
 			); // Basic detail print if requested
@@ -1987,7 +1986,7 @@ static bool LoadDrivePartition(printhandler prn_basic)
 		{
 			if (prn_basic)
 				prn_basic(
-					"FAT12/16 Volume Label: %s, Volume ID %08x\n",
+					"FAT12/16 Volume Label: %.11s, Volume ID %08x\n",
 					bpb->FSTypeData.fat1612.BS_VolumeLabel,
 					(unsigned int)bpb->FSTypeData.fat1612.BS_VolumeID
 				); // Basic detail print if requested

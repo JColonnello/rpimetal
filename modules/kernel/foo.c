@@ -32,6 +32,11 @@ void DisplayDirectory(const char *dirName)
 	FIND_DATA find;
 	char *month[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 	fh = sdFindFirstFile(dirName, &find); // Find first file
+	if (fh == 0)
+	{
+		printf("No files found\n");
+		return;
+	}
 	do
 	{
 		if (find.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
