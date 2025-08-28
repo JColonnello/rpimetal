@@ -11,7 +11,7 @@ MODULES += $(KERNEL)
 
 # Phony targets
 
-.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc sync
+.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc sync mux-tcp
 
 all: $(IMAGE)
 
@@ -34,6 +34,9 @@ debug-vnc: all
 
 uart0:
 	nc -lkvp 4444
+
+mux-tcp:
+	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'build/multiplex config-mult.txt',nofork
 
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/

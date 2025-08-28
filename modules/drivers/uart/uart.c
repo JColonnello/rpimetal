@@ -154,7 +154,7 @@ static void map_pins()
 static void handle_uart0(void *data)
 {
 	uint32_t flag = *UART0_FR;
-	unsigned i;
+	unsigned i, j;
 	bool has_data = true;
 
 	// If there is nothing to read, skip
@@ -162,16 +162,16 @@ static void handle_uart0(void *data)
 		goto tx;
 
 	i = ring_buffer_capacity(&uart_rx_buffer);
-	for (;;)
+	for (j = 0;;)
 	{
-		while (i > 0)
+		for (; i > 0; j++)
 		{
 			char c = (char)(*UART0_DR);
 			ring_buffer_queue_nc(&uart_rx_buffer, c);
 			flag = *UART0_FR;
 			i--;
 
-			if (flag & FR_RXFE_MASK)
+			if (flag & FR_RXFE_MASK || j >= 16)
 			{
 				has_data = false;
 				break;
@@ -197,16 +197,17 @@ tx:
 		return;
 
 	i = ring_buffer_num_items(&uart_tx_buffer);
+	j = 0;
 	do
 	{
-		for (; i > 0;)
+		for (; i > 0; j++)
 		{
 			char c = ring_buffer_dequeue_nc(&uart_tx_buffer);
 			*UART0_DR = c;
 			flag = *UART0_FR;
 			i--;
 
-			if (flag & FR_TXFF_MASK)
+			if (flag & FR_TXFF_MASK || j >= 16)
 				return;
 		}
 
@@ -228,24 +229,26 @@ constructor static void uart_init()
 	ring_buffer_init(&uart_rx_buffer, raw_rx_buffer, sizeof(raw_rx_buffer));
 	ring_buffer_init(&uart_tx_buffer, raw_tx_buffer, sizeof(raw_tx_buffer));
 
-	*UART0_CR = 0; // turn off UART0
-	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
+	if (*UART0_CR)
+	{
+		*UART0_CR &= ~CR_RXE_MASK;       // Disable reception
+		*UART0_LCRH &= ~LCRH_FEN_MASK;   // Disable FIFOs;
+		while (*UART0_FR & FR_BUSY_MASK) // Wait for UART to be idle
+			asm volatile("nop");
+		*UART0_CR = 0; // Turn off UART0
+	}
 
-	// Wait for UART to be idle
-	while (*UART0_FR & FR_BUSY_MASK)
-		asm volatile("nop");
-	*UART0_LCRH &= ~LCRH_FEN_MASK; // disable FIFOs;
-
-	set_clock(4000000);
-	map_pins();
+	// set_clock(4000000);
+	// map_pins();
 
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
-	*UART0_IBRD = 2;    // 115200 baud
-	*UART0_FBRD = 0xB;
+	// *UART0_IBRD = 2;    // 115200 baud
+	// *UART0_FBRD = 0xB;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_2 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_8 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
+	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
 	// We disable interrupts, send a dummy character through loopback, and read it
@@ -255,6 +258,17 @@ constructor static void uart_init()
 		*UART0_DR = 0;
 	*UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
+	while (*UART0_FR & FR_BUSY_MASK)
+		asm volatile("nop");
+}
+
+static destructor void uart_destructor()
+{
+	*UART0_CR &= ~CR_RXE_MASK; // Turn off RX
+	uart_flush_tx();
+	while (*UART0_FR & FR_BUSY_MASK)
+		asm volatile("nop");
+	*UART0_CR = 0; // Turn off
 }
 
 static inline void signal_tx()
@@ -265,6 +279,16 @@ static inline void signal_tx()
 static inline void signal_rx()
 {
 	*UART0_IMSC |= INT_RX;
+}
+
+void uart_send_raw(const char *s, size_t n)
+{
+	for (int i = 0; i < n; i++)
+	{
+		while (*UART0_FR & FR_TXFF_MASK)
+			asm volatile("nop");
+		*UART0_DR = s[i];
+	}
 }
 
 /**
@@ -356,4 +380,10 @@ size_t uart_rx_available()
 size_t uart_tx_available()
 {
 	return ring_buffer_capacity(&uart_tx_buffer);
+}
+
+void uart_flush_tx()
+{
+	while (ring_buffer_num_items(&uart_tx_buffer) > 0)
+		asm("wfi");
 }

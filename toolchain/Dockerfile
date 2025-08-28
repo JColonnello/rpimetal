@@ -74,7 +74,7 @@ rm -rf /build
 FROM base AS toolchain
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim
+apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim socat gcc
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password

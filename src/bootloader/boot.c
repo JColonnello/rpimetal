@@ -1,6 +1,5 @@
 #include "boot.h"
 #include "loader.h"
-#include "sys/mux.h"
 #include <arm/irq.h>
 #include <attrib.h>
 #include <boot/custom.h>
@@ -40,6 +39,8 @@ void noreturn kernel_jump()
 	__builtin_unreachable();
 }
 
+extern noreturn void proc_hang();
+
 int main(void)
 {
 	symbol_data symbols[] = {
@@ -72,6 +73,8 @@ int main(void)
 	};
 	boot_userdata.custom = &boot_data;
 	kernel_start = loader_search_symbol("_start");
+
+	fputs("Jumping to kernel...\n", stdout);
 
 	return 0;
 }

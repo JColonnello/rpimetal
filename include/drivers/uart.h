@@ -11,3 +11,5 @@ void uart_set_tx_callback(void (*handler)(size_t available));
 size_t uart_recv_buffer(char *s, size_t n);
 size_t uart_rx_available();
 size_t uart_tx_available();
+void uart_send_raw(const char *s, size_t n);
+void uart_flush_tx();

@@ -4,6 +4,7 @@
 #include <sglib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/mux.h>
 
@@ -66,7 +67,10 @@ void mux_process_input(size_t available)
 		int16_t curr_mesg_channel = *(int16_t *)rx_mesg_buf;
 		uint16_t curr_mesg_len = *(uint16_t *)(rx_mesg_buf + 2);
 		if (curr_mesg_len > MAX_MESSAGE_SIZE)
-			abort();
+		{
+			fprintf(stderr, "Received message length %d exceeds maximum %d\n", curr_mesg_len, MAX_MESSAGE_SIZE);
+			exit(1);
+		}
 
 		remaining = curr_mesg_len + HEADER_SIZE - rx_mesg_bytes;
 		if (remaining > 0)

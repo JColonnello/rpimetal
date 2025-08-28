@@ -42,9 +42,17 @@ int _write(int fd, const void *buf, size_t count)
 		errno = EBADF;
 		return -1;
 	}
-	mux_send(channel, buf, count);
+	ssize_t written = count;
+	for (;;)
+	{
+		written = mux_send(channel, buf, count);
+		if (count != 0 && written == 0)
+			asm("wfi");
+		else
+			break;
+	}
 	uart_send_buffer(NULL, 0); // Flush output
-	return count;
+	return written;
 }
 
 void undef_func(const char *func)

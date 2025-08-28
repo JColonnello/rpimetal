@@ -70,7 +70,15 @@ int _write(int fd, const void *buf, size_t count)
 		errno = EBADF;
 		return -1;
 	}
-	size_t written = mux_send(channel, buf, count);
+	ssize_t written;
+	for (;;)
+	{
+		written = mux_send(channel, buf, count);
+		if (count != 0 && written == 0)
+			asm("wfi");
+		else
+			break;
+	}
 	uart_send_buffer(NULL, 0); // Flush output
 	return written;
 }
@@ -84,7 +92,16 @@ int _read(int fd, void *buf, size_t nbyte)
 	}
 
 	uart_recv_buffer(NULL, 0); // Flush input
-	return mux_recv(fd, buf, nbyte);
+	ssize_t read;
+	for (;;)
+	{
+		read = mux_recv(fd, buf, nbyte);
+		if (nbyte != 0 && read == 0)
+			asm("wfi");
+		else
+			break;
+	}
+	return read;
 }
 
 int _close(int fd)
