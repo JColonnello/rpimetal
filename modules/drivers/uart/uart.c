@@ -32,6 +32,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* PL011 UART registers */
 #define UART0_DR ((volatile uint32_t *)(MMIO_BASE + 0x00201000))
@@ -131,6 +132,22 @@ static void set_clock(unsigned long freq)
 	mbox[8] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
 	mbox_wait();
+}
+
+static unsigned long get_clock()
+{
+	/* set up clock for consistent divisor values */
+	mbox[0] = 9 * 4;
+	mbox[1] = MBOX_REQUEST;
+	mbox[2] = 0x30002; // get clock rate
+	mbox[3] = 8;       // Data length
+	mbox[4] = 0;       // Request
+	mbox[5] = 2;       // UART clock
+	mbox[6] = 0;       // Result
+	mbox[7] = MBOX_TAG_LAST;
+	mbox_call(MBOX_CH_PROP);
+	mbox_wait();
+	return mbox[6];
 }
 
 static void map_pins()
@@ -239,7 +256,11 @@ constructor static void uart_init()
 	}
 
 	// set_clock(4000000);
-	// map_pins();
+	unsigned long freq = get_clock(); // This enables interrupts too
+	float divisor = (float)(*UART0_FBRD / 64.0f + *UART0_IBRD);
+	unsigned baud = (unsigned)(freq / (16 * divisor));
+	map_pins();
+	printf("UART clock: %lu, divisor = %u + %u/64. Resulting baud rate: %u\n", freq, *UART0_IBRD, *UART0_FBRD, baud);
 
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
@@ -266,9 +287,11 @@ static destructor void uart_destructor()
 {
 	*UART0_CR &= ~CR_RXE_MASK; // Turn off RX
 	uart_flush_tx();
+	*UART0_IMSC = 0;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");
 	*UART0_CR = 0; // Turn off
+	irq_unregister(GPU_INTERRUPT2, 57);
 }
 
 static inline void signal_tx()

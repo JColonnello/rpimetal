@@ -31,7 +31,7 @@ constructor static void timer_init(void)
 	asm("mrs %0, CNTFRQ_EL0" : "=r"(freq));
 }
 
-destructor void timer_fini(void)
+destructor static void timer_fini(void)
 {
 	// Disable local timer
 	mreg32(TIMER_CTRL) = 0;

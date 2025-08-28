@@ -261,13 +261,15 @@ bool irq_unregister(irq_type type, unsigned char nIrq)
 		core_interrupt_source = (uint32_t *)CORE0_INT_SOURCE + get_core_id();
 	}
 
-	if (!check_nIrq(&nIrq, &type))
+	irq_type alias = type;
+	unsigned char nAlias = nIrq;
+	if (!check_nIrq(&nAlias, &alias))
 		return false;
 
 	irq_handler handler = {
 		.enabled = true,
-		.mask = 1 << nIrq,
-		.type = type,
+		.mask = 1 << nAlias,
+		.type = alias,
 	};
 	bool found;
 	int i;
@@ -275,8 +277,10 @@ bool irq_unregister(irq_type type, unsigned char nIrq)
 	if (!found)
 		return false;
 
+	irq_disable();
 	core_interrupts[i].enabled = false;
 	SGLIB_ARRAY_SINGLE_HEAP_SORT(irq_handler, core_interrupts, MAX_HANDLERS, HANDLER_ORD);
+	irq_enable();
 
 	switch (type)
 	{
