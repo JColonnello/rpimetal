@@ -16,7 +16,7 @@ MODULES += $(KERNEL)
 all: $(IMAGE)
 
 clean:
-	rm -rf $(BUILD_DIR) *.img
+	rm -rf $(BUILD_DIR)
 
 rebuild: clean all
 
@@ -36,7 +36,7 @@ uart0:
 	nc -lkvp 4444
 
 mux-tcp:
-	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'build/multiplex config-mult.txt',nofork
+	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'output/multiplex config-mult.txt',nofork
 
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
@@ -97,8 +97,8 @@ $(BUILD_DIR)/%.s.o: %.s
 # Tools
 
 .PHONY:
-multiplex: $(BUILD_DIR)/multiplex
-$(BUILD_DIR)/multiplex: toolchain/multiplex.c
+multiplex: output/multiplex
+output/multiplex: toolchain/multiplex.c
 	gcc -g -o $@ $<
 
 ifneq (clean,$(MAKECMDGOALS))
