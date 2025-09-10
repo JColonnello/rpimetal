@@ -80,17 +80,17 @@ $(IMAGE): $(BUILD_DIR)/kernel8.elf
 
 # Object files
 
-$(BUILD_DIR)/%.c.o: %.c
+$(BUILD_DIR)/%.c.o $(BUILD_DIR)/%.c.d &: %.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
+	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.S.o: %.S
+$(BUILD_DIR)/%.S.o $(BUILD_DIR)/%.S.d &: %.S
 	@mkdir -p $(@D)
-	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
+	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.s.o: %.s
+$(BUILD_DIR)/%.s.o $(BUILD_DIR)/%.s.d &: %.s
 	@mkdir -p $(@D)
-	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $@
+	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
 # Other Makefiles
 
