@@ -78,7 +78,7 @@ void mbox_wait()
 
 unsigned mbox_read()
 {
-	printf("You got mail!\n");
+	fprintf(stderr, "You got mail!\n");
 	/* now read the response */
 	return *MBOX_READ;
 }
