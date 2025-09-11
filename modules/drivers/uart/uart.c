@@ -120,15 +120,14 @@ static void (*uart_tx_callback)(size_t available) = _nothing;
 
 static void set_clock(unsigned long freq)
 {
-	/* set up clock for consistent divisor values */
 	mbox[0] = 9 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = MBOX_TAG_SETCLKRATE; // set clock rate
 	mbox[3] = 12;
-	mbox[4] = 8;
+	mbox[4] = 0;    // Request
 	mbox[5] = 2;    // UART clock
 	mbox[6] = freq; // 4Mhz
-	mbox[7] = 0;    // clear turbo
+	mbox[7] = 1;    // clear turbo
 	mbox[8] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
 	mbox_wait();
@@ -136,10 +135,24 @@ static void set_clock(unsigned long freq)
 
 static unsigned long get_clock()
 {
-	/* set up clock for consistent divisor values */
-	mbox[0] = 9 * 4;
+	mbox[0] = 8 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = 0x30002; // get clock rate
+	mbox[3] = 8;       // Data length
+	mbox[4] = 0;       // Request
+	mbox[5] = 2;       // UART clock
+	mbox[6] = 0;       // Result
+	mbox[7] = MBOX_TAG_LAST;
+	mbox_call(MBOX_CH_PROP);
+	mbox_wait();
+	return mbox[6];
+}
+
+static unsigned long get_measured_clock()
+{
+	mbox[0] = 8 * 4;
+	mbox[1] = MBOX_REQUEST;
+	mbox[2] = 0x30047; // get clock rate measured
 	mbox[3] = 8;       // Data length
 	mbox[4] = 0;       // Request
 	mbox[5] = 2;       // UART clock
@@ -242,6 +255,9 @@ tx:
  */
 constructor static void uart_init()
 {
+	const unsigned target_baud = 460800;        // Desired baud rate
+	const unsigned long target_freq = 48000000; // Desired UART clock frequency
+
 	// Initialize ring buffers
 	ring_buffer_init(&uart_rx_buffer, raw_rx_buffer, sizeof(raw_rx_buffer));
 	ring_buffer_init(&uart_tx_buffer, raw_tx_buffer, sizeof(raw_tx_buffer));
@@ -255,17 +271,46 @@ constructor static void uart_init()
 		*UART0_CR = 0; // Turn off UART0
 	}
 
-	// set_clock(4000000);
-	unsigned long freq = get_clock(); // This enables interrupts too
-	float divisor = (float)(*UART0_FBRD / 64.0f + *UART0_IBRD);
-	unsigned baud = (unsigned)(freq / (16 * divisor));
 	map_pins();
-	printf("UART clock: %lu, divisor = %u + %u/64. Resulting baud rate: %u\n", freq, *UART0_IBRD, *UART0_FBRD, baud);
+	// *UART0_FBRD = 4;
+	// *UART0_IBRD = 13;
+	unsigned idiv, fdiv, baud;
+	unsigned long freq;
+	float divisor;
+
+	fdiv = *UART0_FBRD;
+	idiv = *UART0_IBRD;
+	freq = get_clock(); // This enables interrupts too
+	divisor = fdiv / 64.0f + idiv;
+	baud = divisor != 0. ? (unsigned)(freq / (16 * divisor)) : 0;
+	fprintf(
+		stderr, "Current UART clock: %lu, divisor = %u + %u/64 = %.3f, baud rate: %u\n", freq, idiv, fdiv, divisor, baud
+	);
+
+	if (freq != target_freq)
+		set_clock(target_freq);
+	freq = get_measured_clock();
+	divisor = freq / (16.0f * target_baud);
+	idiv = (unsigned)divisor;
+	fdiv = (unsigned)((divisor - (unsigned)divisor) * 64 + 0.5f);
+	divisor = fdiv / 64.0f + idiv;
+	baud = divisor != 0. ? (unsigned)(freq / (16 * divisor)) : 0;
+	fprintf(
+		stderr,
+		"New UART clock: %lu, divisor = %u + %u/64 = %.3f, target baud rate: %u, true baud rate: %u, error: %.2f%%\n",
+		freq,
+		idiv,
+		fdiv,
+		divisor,
+		target_baud,
+		baud,
+		((float)baud - target_baud) / target_baud * 100.0f
+	);
 
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
-	// *UART0_IBRD = 2;    // 115200 baud
-	// *UART0_FBRD = 0xB;
+	*UART0_IBRD = idiv;
+	*UART0_FBRD = fdiv;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
 	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_8 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
