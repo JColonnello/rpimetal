@@ -108,6 +108,8 @@
 #define INT_DCDM (1 << 2)
 #define INT_CTSM (1 << 1)
 
+#define UART_STEP 8
+
 uint32_t nLCRH = LCRH_FEN_MASK;
 static char raw_rx_buffer[2048], raw_tx_buffer[2048];
 static ring_buffer uart_rx_buffer, uart_tx_buffer;
@@ -183,38 +185,46 @@ static void map_pins()
 
 static void handle_uart0(void *data)
 {
-	uint32_t flag = *UART0_FR;
+	uint32_t flag = *UART0_FR, ris = *UART0_RIS;
 	unsigned i, j;
 	bool has_data = true;
 
+	// fputs("I", stderr);
 	// If there is nothing to read, skip
-	if (flag & FR_RXFE_MASK)
+	if (!(ris & INT_RX))
 		goto tx;
 
-	i = ring_buffer_capacity(&uart_rx_buffer);
-	for (j = 0;;)
+	// fputs("U", stderr);
+	goto check_space;
+	for (;;)
 	{
-		for (; i > 0; j++)
+		for (j = 0; j < UART_STEP; i--, j++)
 		{
 			char c = (char)(*UART0_DR);
+			// fprintf(stderr, "%02X ", c);
 			ring_buffer_queue_nc(&uart_rx_buffer, c);
-			flag = *UART0_FR;
-			i--;
-
-			if (flag & FR_RXFE_MASK || j >= 16)
-			{
-				has_data = false;
-				break;
-			}
 		}
+		flag = *UART0_FR, ris = *UART0_RIS;
+		if (!(ris & INT_RX))
+		{
+			// fputs("X", stderr);
+			has_data = false;
+		}
+		else
+		{
+			// fputs("Y", stderr);
+		}
+
 		// Signal the callback
+		// fprintf(stderr, "%lu", sizeof(raw_rx_buffer) - i);
 		uart_rx_callback(sizeof(raw_rx_buffer) - i);
 		// If there is nothing else to read, stop
 		if (!has_data)
 			break;
+	check_space:
 		i = ring_buffer_capacity(&uart_rx_buffer);
 		// If there is no more space in the buffer, me mask the interrupt until there is space
-		if (i == 0)
+		if (i < UART_STEP)
 		{
 			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
 			break;
@@ -255,7 +265,7 @@ tx:
  */
 constructor static void uart_init()
 {
-	const unsigned target_baud = 460800;        // Desired baud rate
+	const unsigned target_baud = 921600;        // Desired baud rate
 	const unsigned long target_freq = 48000000; // Desired UART clock frequency
 
 	// Initialize ring buffers
@@ -312,17 +322,17 @@ constructor static void uart_init()
 	*UART0_IBRD = idiv;
 	*UART0_FBRD = fdiv;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_8 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
 	// We disable interrupts, send a dummy character through loopback, and read it
 	// Then we disable loopback and enable interrupts
-	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK;
+	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
 	for (int i = 8; i--;)
 		*UART0_DR = 0;
-	*UART0_CR &= ~CR_LBE_MASK;
+	// *UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");

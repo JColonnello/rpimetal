@@ -95,12 +95,13 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	// timer_register(1000000, true, timer_callback, "Callback");
 	for (;;)
 	{
-		static char s[128];
-		if (uart_available)
+		static char s[256];
+		size_t n = read(0, s, sizeof(s));
+		// if (uart_available)
+		if (n)
 		{
 			unsigned long time = timer_monotonic();
 			printf("Current time: %lu us\n", time);
-			size_t n = read(0, s, sizeof(s));
 			uart_available = false; // reset the flag
 			printf("Received %lu bytes: %.*s\n", n, (int)n, s);
 		}

@@ -35,7 +35,7 @@ _Static_assert(
 static channel_tree *channels = NULL;
 
 static char rx_mesg_buf[MAX_MESSAGE_SIZE + HEADER_SIZE];
-static unsigned rx_mesg_bytes;
+static unsigned rx_mesg_bytes = 0;
 
 constructor void _stdio_channels()
 {
@@ -59,6 +59,7 @@ void mux_process_input(size_t available)
 	{
 		int remaining = HEADER_SIZE - rx_mesg_bytes;
 
+		// fprintf(stderr, "{%08X}", *((uint32_t *)rx_mesg_buf));
 		if (remaining > 0)
 		{
 			if (available >= remaining)
@@ -70,8 +71,10 @@ void mux_process_input(size_t available)
 			else
 				return;
 		}
+		// fprintf(stderr, "{%08X}", *((uint32_t *)rx_mesg_buf));
 		int16_t curr_mesg_channel = *(int16_t *)rx_mesg_buf;
 		uint16_t curr_mesg_len = *(uint16_t *)(rx_mesg_buf + 2);
+		// fprintf(stderr, "(%d:%d)", curr_mesg_channel, curr_mesg_len);
 		if (curr_mesg_len > MAX_MESSAGE_SIZE)
 		{
 			fprintf(stderr, "Received message length %d exceeds maximum %d\n", curr_mesg_len, MAX_MESSAGE_SIZE);
@@ -81,11 +84,13 @@ void mux_process_input(size_t available)
 		remaining = curr_mesg_len + HEADER_SIZE + LENGTH_MULT - 1;
 		remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
 		remaining -= rx_mesg_bytes;
+		// fprintf(stderr, "[%d/%lu]", remaining, available);
 		if (remaining > 0)
 		{
 			if (available >= remaining)
 			{
 				size_t read = uart_recv_buffer(&rx_mesg_buf[rx_mesg_bytes], remaining);
+				// fprintf(stderr, "[%lu]", read);
 				rx_mesg_bytes += read;
 				available -= read;
 			}
@@ -99,16 +104,23 @@ void mux_process_input(size_t available)
 			rx_mesg_bytes = 0;
 			continue;
 		}
-		if (ring_buffer_capacity(&channel->rx) > curr_mesg_len)
+		if (ring_buffer_capacity(&channel->rx) >= curr_mesg_len)
 		{
+			// fputs("B", stderr);
 			ring_buffer_queue_arr(&channel->rx, &rx_mesg_buf[HEADER_SIZE], curr_mesg_len);
 			rx_mesg_bytes = 0;
 			if (channel->rx_callback)
+			{
+				// fputs("C", stderr);
 				channel->rx_callback(ring_buffer_num_items(&channel->rx));
+			}
 			continue;
 		}
 		else
+		{
+			// fputs("N", stderr);
 			return;
+		}
 	}
 }
 
@@ -145,6 +157,8 @@ void mux_process_output(size_t available)
 
 bool mux_channel_add(int16_t channel, size_t buffer_size, bool complete)
 {
+	if (buffer_size < MAX_MESSAGE_SIZE)
+		return false; // Buffer size too small
 	channel_tree *new_channel = search_channel(channel);
 	if (new_channel)
 		return false; // Channel already exists

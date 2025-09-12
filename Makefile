@@ -99,7 +99,7 @@ $(BUILD_DIR)/%.s.o: %.s
 .PHONY:
 multiplex: $(BUILD_DIR)/multiplex
 $(BUILD_DIR)/multiplex: toolchain/multiplex.c
-	gcc -g -o $@ $<
+	gcc -std=c23 -g -o $@ $<
 
 ifneq (clean,$(MAKECMDGOALS))
 -include $(OBJ_FILES:%.o=%.d)
