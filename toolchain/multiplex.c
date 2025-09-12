@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <signal.h>
 #include <stdint.h>
@@ -9,8 +10,14 @@
 #include <unistd.h>
 
 #define MAX_CHANNELS 256
-#define MAX_PACKET_SIZE 256
+#define MAX_MESSAGE_SIZE 252
 #define HEADER_SIZE 4
+#define LENGTH_MULT 8
+
+_Static_assert(
+	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
+	"Header size + message size must be multiple of length alignment"
+);
 
 typedef struct
 {
@@ -152,13 +159,14 @@ int find_channel(int16_t channel)
 
 int handle_stdin_packet()
 {
-	static uint8_t header[HEADER_SIZE];
-	static int bytes_read, count = 0;
+	static char buffer[HEADER_SIZE + MAX_MESSAGE_SIZE];
+	static int count = 0;
+	int bytes_read;
 
 	// Read packet header
 	while (HEADER_SIZE - count > 0)
 	{
-		bytes_read = read(STDIN_FILENO, &header[count], HEADER_SIZE - count);
+		bytes_read = read(STDIN_FILENO, &buffer[count], HEADER_SIZE - count);
 		if (bytes_read <= 0)
 		{
 			perror("read stdin header");
@@ -166,18 +174,19 @@ int handle_stdin_packet()
 		}
 		count += bytes_read;
 	}
-	count = 0;
 
-	int16_t channel = *(int16_t *)header;
-	uint16_t length = *(uint16_t *)(header + 2);
+	int16_t channel = *(int16_t *)buffer;
+	uint16_t length = *(uint16_t *)(buffer + 2);
 
 	// Find channel
 	int idx = find_channel(channel);
-	if (idx == -1)
+	if (idx == -1 || length > MAX_MESSAGE_SIZE)
 	{
-		// Unknown channel, skip packet
-		fprintf(stderr, "Unknown channel %d, skipping packet\n", channel);
-		static char buffer[MAX_PACKET_SIZE];
+		// Skip packet
+		if (idx == -1)
+			fprintf(stderr, "Unknown channel %d, skipping packet\n", channel);
+		else if (length > MAX_MESSAGE_SIZE)
+			fprintf(stderr, "Packet length %d exceeds maximum %d, skipping packet\n", length, MAX_MESSAGE_SIZE);
 		uint16_t remaining = length;
 		while (remaining > 0)
 		{
@@ -195,33 +204,34 @@ int handle_stdin_packet()
 
 	fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
 	// Forward packet data to subprocess
-	uint16_t remaining = length;
-	char buffer[MAX_PACKET_SIZE];
+	uint16_t remaining = length + HEADER_SIZE + LENGTH_MULT - 1;
+	remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
+	remaining -= HEADER_SIZE;                          // We already read the header
 	while (remaining > 0)
 	{
-		int to_read = remaining > sizeof(buffer) ? sizeof(buffer) : remaining;
-		int bytes_read = read(STDIN_FILENO, buffer, to_read);
+		int bytes_read = read(STDIN_FILENO, &buffer[count], remaining);
 		if (bytes_read <= 0)
 		{
 			perror("read stdin");
 			return -1;
 		}
-
-		if (write(channels[idx].stdin_fd, buffer, bytes_read) != bytes_read)
-		{
-			perror("write to subprocess");
-			return -1;
-		}
+		count += bytes_read;
 		remaining -= bytes_read;
 	}
+	if (write(channels[idx].stdin_fd, &buffer[HEADER_SIZE], length) != length)
+	{
+		perror("write to subprocess");
+		return -1;
+	}
+	count = 0;
 
 	return 0;
 }
 
 int handle_subprocess_output(int idx)
 {
-	char buffer[MAX_PACKET_SIZE];
-	int bytes_read = read(channels[idx].stdout_fd, buffer, sizeof(buffer));
+	static char buffer[HEADER_SIZE + MAX_MESSAGE_SIZE];
+	int bytes_read = read(channels[idx].stdout_fd, &buffer[HEADER_SIZE], MAX_MESSAGE_SIZE);
 
 	if (bytes_read <= 0)
 	{
@@ -231,14 +241,15 @@ int handle_subprocess_output(int idx)
 	}
 
 	// Create packet header
-	uint8_t header[HEADER_SIZE];
-	*(int16_t *)header = channels[idx].channel;
-	*(uint16_t *)(header + 2) = bytes_read;
+	*(int16_t *)buffer = channels[idx].channel;
+	*(uint16_t *)(buffer + 2) = bytes_read;
 
 	fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
+	// Round up bytes_read so (bytes_read + HEADER_SIZE) is multiple of LENGTH_MULT
+	unsigned to_write = bytes_read + HEADER_SIZE + LENGTH_MULT - 1;
+	to_write = to_write / LENGTH_MULT * LENGTH_MULT;
 	// Write header and data to stdout
-	if (write(STDOUT_FILENO, header, HEADER_SIZE) != HEADER_SIZE ||
-		write(STDOUT_FILENO, buffer, bytes_read) != bytes_read)
+	if (write(STDOUT_FILENO, buffer, to_write) != to_write)
 	{
 		perror("write to stdout");
 		return -1;

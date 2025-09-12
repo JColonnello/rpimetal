@@ -24,8 +24,14 @@ typedef struct channel_tree
 SGLIB_DEFINE_RBTREE_PROTOTYPES(channel_tree, left, right, color, TREE_COMPARE)
 SGLIB_DEFINE_RBTREE_FUNCTIONS(channel_tree, left, right, color, TREE_COMPARE)
 
-#define MAX_MESSAGE_SIZE 256
+#define MAX_MESSAGE_SIZE 252
 #define HEADER_SIZE 4
+#define LENGTH_MULT 8
+_Static_assert(
+	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
+	"Header size + message size must be multiple of length alignment"
+);
+
 static channel_tree *channels = NULL;
 
 static char rx_mesg_buf[MAX_MESSAGE_SIZE + HEADER_SIZE];
@@ -72,7 +78,9 @@ void mux_process_input(size_t available)
 			exit(1);
 		}
 
-		remaining = curr_mesg_len + HEADER_SIZE - rx_mesg_bytes;
+		remaining = curr_mesg_len + HEADER_SIZE + LENGTH_MULT - 1;
+		remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
+		remaining -= rx_mesg_bytes;
 		if (remaining > 0)
 		{
 			if (available >= remaining)
@@ -93,7 +101,7 @@ void mux_process_input(size_t available)
 		}
 		if (ring_buffer_capacity(&channel->rx) > curr_mesg_len)
 		{
-			ring_buffer_queue_arr(&channel->rx, rx_mesg_buf + HEADER_SIZE, curr_mesg_len);
+			ring_buffer_queue_arr(&channel->rx, &rx_mesg_buf[HEADER_SIZE], curr_mesg_len);
 			rx_mesg_bytes = 0;
 			if (channel->rx_callback)
 				channel->rx_callback(ring_buffer_num_items(&channel->rx));
@@ -128,7 +136,9 @@ void mux_process_output(size_t available)
 		ring_buffer_dequeue_arr(&tx_next->tx, tx_buf + HEADER_SIZE, curr_mesg_len);
 		if (tx_next->tx_callback)
 			tx_next->tx_callback(ring_buffer_capacity(&tx_next->tx));
-		available -= uart_send_buffer(tx_buf, curr_mesg_len + HEADER_SIZE);
+		unsigned to_write = curr_mesg_len + HEADER_SIZE + LENGTH_MULT - 1;
+		to_write = to_write / LENGTH_MULT * LENGTH_MULT;
+		available -= uart_send_buffer(tx_buf, to_write);
 	}
 	tx_next = sglib_channel_tree_it_init_inorder(&tx_it, channels);
 }

@@ -320,7 +320,7 @@ constructor static void uart_init()
 	// We disable interrupts, send a dummy character through loopback, and read it
 	// Then we disable loopback and enable interrupts
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK;
-	for (int i = 4; i--;)
+	for (int i = 8; i--;)
 		*UART0_DR = 0;
 	*UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
