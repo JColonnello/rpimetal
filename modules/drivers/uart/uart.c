@@ -189,39 +189,12 @@ static void handle_uart0(void *data)
 	unsigned i, j;
 	bool has_data = true;
 
-	// fputs("I", stderr);
 	// If there is nothing to read, skip
 	if (!(is & INT_RX))
 		goto tx;
 
-	// fputs("U", stderr);
-	goto check_space;
 	for (;;)
 	{
-		for (j = 0; j < UART_STEP; i--, j++)
-		{
-			char c = (char)(*UART0_DR);
-			// fprintf(stderr, "%02X ", c);
-			ring_buffer_queue_nc(&uart_rx_buffer, c);
-		}
-		flag = *UART0_FR, is = *UART0_MIS;
-		if (!(is & INT_RX))
-		{
-			// fputs("X", stderr);
-			has_data = false;
-		}
-		else
-		{
-			// fputs("Y", stderr);
-		}
-
-		// Signal the callback
-		// fprintf(stderr, "%lu", sizeof(raw_rx_buffer) - i);
-		uart_rx_callback(sizeof(raw_rx_buffer) - i);
-		// If there is nothing else to read, stop
-		if (!has_data)
-			break;
-	check_space:
 		i = ring_buffer_capacity(&uart_rx_buffer);
 		// If there is no more space in the buffer, me mask the interrupt until there is space
 		if (i < UART_STEP)
@@ -229,6 +202,20 @@ static void handle_uart0(void *data)
 			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
 			break;
 		}
+		for (j = 0; j < UART_STEP; i--, j++)
+		{
+			char c = (char)(*UART0_DR);
+			ring_buffer_queue_nc(&uart_rx_buffer, c);
+		}
+		is = *UART0_RIS;
+		if (!(is & INT_RX))
+			has_data = false;
+
+		// Signal the callback
+		uart_rx_callback(sizeof(raw_rx_buffer) - i);
+		// If there is nothing else to read, stop
+		if (!has_data)
+			break;
 	}
 
 tx:
@@ -327,12 +314,10 @@ constructor static void uart_init()
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
-	// We disable interrupts, send a dummy character through loopback, and read it
-	// Then we disable loopback and enable interrupts
+	// We send dummy characters and enable interrupts
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
 	for (int i = 8; i--;)
 		*UART0_DR = 0;
-	// *UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");

@@ -97,7 +97,6 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	{
 		static char s[256];
 		size_t n = read(0, s, sizeof(s));
-		// if (uart_available)
 		if (n)
 		{
 			unsigned long time = timer_monotonic();
