@@ -185,13 +185,13 @@ static void map_pins()
 
 static void handle_uart0(void *data)
 {
-	uint32_t flag = *UART0_FR, ris = *UART0_RIS;
+	uint32_t flag = *UART0_FR, is = *UART0_MIS;
 	unsigned i, j;
 	bool has_data = true;
 
 	// fputs("I", stderr);
 	// If there is nothing to read, skip
-	if (!(ris & INT_RX))
+	if (!(is & INT_RX))
 		goto tx;
 
 	// fputs("U", stderr);
@@ -204,8 +204,8 @@ static void handle_uart0(void *data)
 			// fprintf(stderr, "%02X ", c);
 			ring_buffer_queue_nc(&uart_rx_buffer, c);
 		}
-		flag = *UART0_FR, ris = *UART0_RIS;
-		if (!(ris & INT_RX))
+		flag = *UART0_FR, is = *UART0_MIS;
+		if (!(is & INT_RX))
 		{
 			// fputs("X", stderr);
 			has_data = false;
@@ -418,8 +418,7 @@ size_t uart_send_buffer(const char *s, size_t n)
 size_t uart_recv_buffer(char *s, size_t n)
 {
 	size_t count = ring_buffer_dequeue_arr(&uart_rx_buffer, s, n);
-	if (count > 0)
-		signal_rx();
+	signal_rx();
 	return count;
 }
 

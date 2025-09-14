@@ -1,3 +1,4 @@
+#include "arm/irq.h"
 #include "drivers/uart.h"
 #include <attrib.h>
 #include <ringbuffer.h>
@@ -201,6 +202,8 @@ size_t mux_send(int16_t channel, const char *data, size_t size)
 		return 0; // Not enough space in the transmit buffer
 
 	size_t written = ring_buffer_queue_arr(&channel_node->tx, data, size);
+	if (written)
+		uart_send_buffer(NULL, 0); // Flush output
 	return written;
 }
 
@@ -210,7 +213,14 @@ size_t mux_recv(int16_t channel, char *buffer, size_t size)
 	if (!channel_node)
 		return 0; // Channel does not exist
 
-	return ring_buffer_dequeue_arr(&channel_node->rx, buffer, size);
+	size_t read = ring_buffer_dequeue_arr(&channel_node->rx, buffer, size);
+	if (read)
+	{
+		irq_disable();
+		mux_process_input(0);
+		irq_enable();
+	}
+	return read;
 }
 
 bool mux_set_rx_callback(int16_t channel, void (*handler)(size_t available))
