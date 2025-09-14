@@ -30,20 +30,6 @@
 			},
 		},
 		{
-			"type": "gdb",
-			"request": "attach",
-			"name": "Native debug",
-			"executable": "./build/kernel8.elf",
-			"target": ":1234",
-			"remote": true,
-			"cwd": "${workspaceRoot}",
-			"gdbpath": "aarch64-none-elf-gdb",
-			"valuesFormatting": "prettyPrinters",
-			"autorun": [
-				"set output-radix 16"
-			]
-		},
-		{
 			"name": "(C++) Launch",
 			"type": "cppdbg",
 			"request": "launch",
