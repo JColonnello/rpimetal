@@ -37,7 +37,7 @@ WORKDIR /build/obj/
 
 FROM compile AS cross
 ENV target=aarch64-none-elf
-RUN --mount=type=bind,from=source,source=/usr/local/src,target=/usr/local/src,rw CFLAGS_FOR_TARGET='-mtp=tpidr_el1 -g -O0 -ftls-model=local-exec' /usr/local/src/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat --with-python --enable-newlib-reent-thread-local --enable-newlib-multithread && \
+RUN --mount=type=bind,from=source,source=/usr/local/src,target=/usr/local/src,rw CFLAGS_FOR_TARGET='-mtp=tpidr_el1 -g -O0 -ftls-model=local-exec' /usr/local/src/configure --prefix=/opt/$target --libexecdir=/opt/$target/lib --target=$target --enable-languages=c,c++ --enable-gold --disable-libstdcxx-pch --with-newlib --with-libgloss --disable-nls --enable-plugins --enable-deterministic-archives --enable-relro --enable-__cxa_atexit --disable-linker-build-id --enable-checking=release --enable-host-shared --disable-libssp --disable-libunwind-exceptions --disable-source-highlight --disable-multilib --disable-bootstrap --enable-tui --with-expat --with-python --enable-newlib-reent-thread-local --enable-newlib-multithread && \
 # mkdir -p /opt/aarch64-none-elf/ && bear --append --output /opt/aarch64-none-elf/compile_commands.json -- make -j$[$(nproc) - 1] && \
 make -j$[$(nproc) - 1] && \
 make install && \

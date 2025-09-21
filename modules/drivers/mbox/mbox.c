@@ -69,7 +69,7 @@ int mbox_call(unsigned char ch)
 
 void mbox_wait()
 {
-	while (!(mbox[1] & MBOX_RESPONSE))
+	for (int i = 200; i > 0 && !(mbox[1] & MBOX_RESPONSE); i--)
 	{
 		/* wait for the response */
 		timer_microsleep(10);

@@ -19,7 +19,15 @@ irq_disable:
 	mrs	x2, elr_el1
 	mrs	x3, far_el1
 	bl	show_invalid_entry_message
-	b	proc_hang
+	ldp	x0, x1, [sp, #16 * 0]
+	mov x0, 1
+	stp	x0, x1, [sp, #16 * 0]
+	ldp	x18, x30, [sp, #16 * 9]
+	mrs x30, elr_el1
+	stp	x18, x30, [sp, #16 * 9]
+	adr x1, exit
+	msr elr_el1, x1
+	kernel_exit
 	.endm
 
 	.macro	ventry	label
