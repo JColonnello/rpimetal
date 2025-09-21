@@ -4,8 +4,9 @@
 #include <drivers/base.h>
 #include <stdbool.h> // Needed for bool and true/false
 #include <stdint.h>  // Needed for uint8_t, uint32_t, uint64_t etc
-#include <string.h>  // Needed for string copy
-#include <wchar.h>   // Needed for UTF for long file name support
+#include <stdio.h>
+#include <string.h> // Needed for string copy
+#include <wchar.h>  // Needed for UTF for long file name support
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++}
 {																			}
@@ -40,7 +41,7 @@ printhandler LOG_ERROR = NULL; // LOG_ERROR is a function pointer of that printh
 /*--------------------------------------------------------------------------}
 {  This controls if debugging code is compiled or removed at compile time   }
 {--------------------------------------------------------------------------*/
-#define DEBUG_INFO 0 // Compile debugging message code .... set to 1 and other value means no compilation
+#define DEBUG_INFO 1 // Compile debugging message code .... set to 1 and other value means no compilation
 
 /*--------------------------------------------------------------------------}
 {  The working part of the DEBUG_INFO macro to make compilation on or off   }
@@ -620,7 +621,7 @@ static_assert(sizeof(struct regCID) == 0x10, "EMMC register CID should be 0x10 b
 /*--------------------------------------------------------------------------}
 {						  CMD 41 BIT SELECTIONS							    }
 {--------------------------------------------------------------------------*/
-#define ACMD41_HCS 0x40000000
+#define ACMD41_HCS 0x41000000
 #define ACMD41_SDXC_POWER 0x10000000
 #define ACMD41_S18R 0x04000000
 #define ACMD41_VOLTAGE 0x00ff8000
@@ -1157,10 +1158,7 @@ static int sdSendCommandP(EMMCCommand *cmd, uint32_t arg)
 		return SD_BUSY; // Check command wait
 
 	LOG_DEBUG(
-		"EMMC: Sending command %s code %08x arg %08x\n",
-		cmd->cmd_name,
-		(unsigned int)cmd->code.CMD_INDEX,
-		(unsigned int)arg
+		"EMMC: Sending command %s code %08x arg %08x\n", cmd->cmd_name, (unsigned int)cmd->code.Raw32, (unsigned int)arg
 	);
 	sdCard.lastCmd = cmd;
 
@@ -1438,7 +1436,7 @@ static uint_fast8_t fls_uint32_t(uint32_t x)
 .--------------------------------------------------------------------------*/
 static uint32_t sdGetClockDivider(uint32_t freq)
 {
-	uint32_t divisor = (41666667 + freq - 1) / freq; // Pi SD frequency is always 41.66667Mhz on baremetal
+	uint32_t divisor = 41666667 / freq; // Pi SD frequency is always 41.66667Mhz on baremetal
 	if (divisor > 0x3FF)
 		divisor = 0x3FF; // Constrain divisor to max 0x3FF
 	if (EMMC_SLOTISR_VER->SDVERSION < 2)
@@ -1451,7 +1449,7 @@ static uint32_t sdGetClockDivider(uint32_t freq)
 		divisor = ((uint32_t)1 << shiftcount); // Version 1,2 take power 2
 	}
 	else if (divisor < 3)
-		divisor = 4; // Set minimum divisor limit
+		divisor = 2; // Set minimum divisor limit
 	LOG_DEBUG("Divisor = %i, Freq Set = %i\n", (int)divisor, (int)(41666667 / divisor));
 	return divisor; // Return divisor that would be required
 }
