@@ -5,7 +5,7 @@ MODULES_DIR = modules
 IMAGE = output/kernel8.img
 BOOT_SRC_DIR = src/bootloader
 KERNEL = kernel
-BOOT_MODULES = arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart drivers/sd2
+BOOT_MODULES = arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart loader
 MODULES = testing/test
 MODULES += $(KERNEL)
 
@@ -71,7 +71,7 @@ C_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.c')
 ASM_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.s')
 OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
 
-$(BUILD_DIR)/kernel8.elf: $(BOOT_SRC_DIR)/linker.ld $(OBJ_FILES) $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
+$(BUILD_DIR)/kernel8.elf: $(BOOT_SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
 	$(CC) $(CFLAGS) -Wl,--unresolved-symbols=ignore-all -o $@ -T $^
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
