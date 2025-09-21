@@ -24,7 +24,7 @@
  */
 
 #include "sd.h"
-#include "uart.h"
+#include <stdio.h>
 
 // get the end of bss segment from linker
 static unsigned char buffer[512];
@@ -38,7 +38,6 @@ int main()
 	// use the last 4 bytes on the second sector as a boot counter
 	unsigned int *counter = (unsigned int *)(buffer + 508);
 	// set up serial console
-	uart_init();
 
 	// initialize EMMC and detect SD card type
 	if (sd_init() == SD_OK)
@@ -51,16 +50,10 @@ int main()
 			// save the sector
 			if (sd_writeblock(buffer, COUNTER_SECTOR, 1))
 			{
-				uart_puts("Boot counter ");
-				uart_hex(*counter);
-				uart_puts(" written to SD card.\n");
+				printf("Boot counter %08X written to SD card.\n", *counter);
 			}
 		}
 	}
 
-	// echo everything back
-	while (1)
-	{
-		uart_send(uart_getc());
-	}
+	return 1;
 }

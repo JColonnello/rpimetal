@@ -26,7 +26,7 @@
 #include "sd.h"
 #include "delays.h"
 #include "drivers/gpio.h"
-#include "uart.h"
+#include <stdio.h>
 
 #define EMMC_ARG2 ((volatile unsigned int *)(MMIO_BASE + 0x00300000))
 #define EMMC_BLKSIZECNT ((volatile unsigned int *)(MMIO_BASE + 0x00300004))
@@ -118,6 +118,9 @@
 #define ACMD41_CMD_COMPLETE 0x80000000
 #define ACMD41_CMD_CCS 0x40000000
 #define ACMD41_ARG_HC 0x51ff8000
+
+#define uart_puts(s) fputs(s, stdout)
+#define uart_hex(d) printf("%08X", d)
 
 unsigned long sd_scr[2], sd_ocr, sd_rca, sd_err, sd_hv;
 
