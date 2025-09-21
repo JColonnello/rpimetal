@@ -23,7 +23,7 @@
  *
  */
 
-#include "sd.h"
+#include <drivers/sd2.h>
 #include <stdio.h>
 
 // get the end of bss segment from linker
