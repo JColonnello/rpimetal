@@ -32,6 +32,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* PL011 UART registers */
 #define UART0_DR ((volatile uint32_t *)(MMIO_BASE + 0x00201000))
@@ -107,6 +108,8 @@
 #define INT_DCDM (1 << 2)
 #define INT_CTSM (1 << 1)
 
+#define UART_STEP 8
+
 uint32_t nLCRH = LCRH_FEN_MASK;
 static char raw_rx_buffer[2048], raw_tx_buffer[2048];
 static ring_buffer uart_rx_buffer, uart_tx_buffer;
@@ -119,18 +122,47 @@ static void (*uart_tx_callback)(size_t available) = _nothing;
 
 static void set_clock(unsigned long freq)
 {
-	/* set up clock for consistent divisor values */
 	mbox[0] = 9 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = MBOX_TAG_SETCLKRATE; // set clock rate
 	mbox[3] = 12;
-	mbox[4] = 8;
+	mbox[4] = 0;    // Request
 	mbox[5] = 2;    // UART clock
 	mbox[6] = freq; // 4Mhz
-	mbox[7] = 0;    // clear turbo
+	mbox[7] = 1;    // clear turbo
 	mbox[8] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
 	mbox_wait();
+}
+
+static unsigned long get_clock()
+{
+	mbox[0] = 8 * 4;
+	mbox[1] = MBOX_REQUEST;
+	mbox[2] = 0x30002; // get clock rate
+	mbox[3] = 8;       // Data length
+	mbox[4] = 0;       // Request
+	mbox[5] = 2;       // UART clock
+	mbox[6] = 0;       // Result
+	mbox[7] = MBOX_TAG_LAST;
+	mbox_call(MBOX_CH_PROP);
+	mbox_wait();
+	return mbox[6];
+}
+
+static unsigned long get_measured_clock()
+{
+	mbox[0] = 8 * 4;
+	mbox[1] = MBOX_REQUEST;
+	mbox[2] = 0x30047; // get clock rate measured
+	mbox[3] = 8;       // Data length
+	mbox[4] = 0;       // Request
+	mbox[5] = 2;       // UART clock
+	mbox[6] = 0;       // Result
+	mbox[7] = MBOX_TAG_LAST;
+	mbox_call(MBOX_CH_PROP);
+	mbox_wait();
+	return mbox[6];
 }
 
 static void map_pins()
@@ -153,42 +185,37 @@ static void map_pins()
 
 static void handle_uart0(void *data)
 {
-	uint32_t flag = *UART0_FR;
+	uint32_t flag = *UART0_FR, is = *UART0_MIS;
 	unsigned i, j;
 	bool has_data = true;
 
 	// If there is nothing to read, skip
-	if (flag & FR_RXFE_MASK)
+	if (!(is & INT_RX))
 		goto tx;
 
-	i = ring_buffer_capacity(&uart_rx_buffer);
-	for (j = 0;;)
+	for (;;)
 	{
-		for (; i > 0; j++)
+		i = ring_buffer_capacity(&uart_rx_buffer);
+		// If there is no more space in the buffer, me mask the interrupt until there is space
+		if (i < UART_STEP)
+		{
+			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
+			break;
+		}
+		for (j = 0; j < UART_STEP; i--, j++)
 		{
 			char c = (char)(*UART0_DR);
 			ring_buffer_queue_nc(&uart_rx_buffer, c);
-			flag = *UART0_FR;
-			i--;
-
-			if (flag & FR_RXFE_MASK || j >= 16)
-			{
-				has_data = false;
-				break;
-			}
 		}
+		is = *UART0_RIS;
+		if (!(is & INT_RX))
+			has_data = false;
+
 		// Signal the callback
 		uart_rx_callback(sizeof(raw_rx_buffer) - i);
 		// If there is nothing else to read, stop
 		if (!has_data)
 			break;
-		i = ring_buffer_capacity(&uart_rx_buffer);
-		// If there is no more space in the buffer, me mask the interrupt until there is space
-		if (i == 0)
-		{
-			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
-			break;
-		}
 	}
 
 tx:
@@ -225,6 +252,9 @@ tx:
  */
 constructor static void uart_init()
 {
+	const unsigned target_baud = 921600;        // Desired baud rate
+	const unsigned long target_freq = 48000000; // Desired UART clock frequency
+
 	// Initialize ring buffers
 	ring_buffer_init(&uart_rx_buffer, raw_rx_buffer, sizeof(raw_rx_buffer));
 	ring_buffer_init(&uart_tx_buffer, raw_tx_buffer, sizeof(raw_tx_buffer));
@@ -238,25 +268,56 @@ constructor static void uart_init()
 		*UART0_CR = 0; // Turn off UART0
 	}
 
-	// set_clock(4000000);
-	// map_pins();
+	map_pins();
+	// *UART0_FBRD = 4;
+	// *UART0_IBRD = 13;
+	unsigned idiv, fdiv, baud;
+	unsigned long freq;
+	float divisor;
+
+	fdiv = *UART0_FBRD;
+	idiv = *UART0_IBRD;
+	freq = get_clock(); // This enables interrupts too
+	divisor = fdiv / 64.0f + idiv;
+	baud = divisor != 0. ? (unsigned)(freq / (16 * divisor)) : 0;
+	fprintf(
+		stderr, "Current UART clock: %lu, divisor = %u + %u/64 = %.3f, baud rate: %u\n", freq, idiv, fdiv, divisor, baud
+	);
+
+	if (freq != target_freq)
+		set_clock(target_freq);
+	freq = get_measured_clock();
+	divisor = freq / (16.0f * target_baud);
+	idiv = (unsigned)divisor;
+	fdiv = (unsigned)((divisor - (unsigned)divisor) * 64 + 0.5f);
+	divisor = fdiv / 64.0f + idiv;
+	baud = divisor != 0. ? (unsigned)(freq / (16 * divisor)) : 0;
+	fprintf(
+		stderr,
+		"New UART clock: %lu, divisor = %u + %u/64 = %.3f, target baud rate: %u, true baud rate: %u, error: %.2f%%\n",
+		freq,
+		idiv,
+		fdiv,
+		divisor,
+		target_baud,
+		baud,
+		((float)baud - target_baud) / target_baud * 100.0f
+	);
 
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
-	// *UART0_IBRD = 2;    // 115200 baud
-	// *UART0_FBRD = 0xB;
+	*UART0_IBRD = idiv;
+	*UART0_FBRD = fdiv;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_8 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
-	// We disable interrupts, send a dummy character through loopback, and read it
-	// Then we disable loopback and enable interrupts
-	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK | CR_LBE_MASK;
-	for (int i = 4; i--;)
+	// We send dummy characters and enable interrupts
+	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
+	for (int i = 8; i--;)
 		*UART0_DR = 0;
-	*UART0_CR &= ~CR_LBE_MASK;
 	*UART0_IMSC = INT_RX | INT_TX;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");
@@ -266,9 +327,11 @@ static destructor void uart_destructor()
 {
 	*UART0_CR &= ~CR_RXE_MASK; // Turn off RX
 	uart_flush_tx();
+	*UART0_IMSC = 0;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");
 	*UART0_CR = 0; // Turn off
+	irq_unregister(GPU_INTERRUPT2, 57);
 }
 
 static inline void signal_tx()
@@ -340,8 +403,7 @@ size_t uart_send_buffer(const char *s, size_t n)
 size_t uart_recv_buffer(char *s, size_t n)
 {
 	size_t count = ring_buffer_dequeue_arr(&uart_rx_buffer, s, n);
-	if (count > 0)
-		signal_rx();
+	signal_rx();
 	return count;
 }
 

@@ -79,7 +79,6 @@ int _write(int fd, const void *buf, size_t count)
 		else
 			break;
 	}
-	uart_send_buffer(NULL, 0); // Flush output
 	return written;
 }
 
@@ -91,7 +90,6 @@ int _read(int fd, void *buf, size_t nbyte)
 		return -1;
 	}
 
-	uart_recv_buffer(NULL, 0); // Flush input
 	ssize_t read;
 	for (;;)
 	{

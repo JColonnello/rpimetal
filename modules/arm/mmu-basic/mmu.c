@@ -111,7 +111,7 @@ static void *plainMap()
 	{
 		mmuTable1b[i] = (MMU_Block){
 			.oa = (0x40000000 + (2 << 20) * i) >> 17,
-			.sh = 0b11,
+			.sh = 0b10,
 			.uxn = true,
 			.pxn = true,
 			.ap = 0b00,

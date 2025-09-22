@@ -17,7 +17,7 @@
 
 #define SCTLR_VALUE_MMU_DISABLED \
 	(SCTLR_RESERVED | SCTLR_EE_LITTLE_ENDIAN | SCTLR_I_CACHE_DISABLED | SCTLR_D_CACHE_DISABLED | SCTLR_MMU_DISABLED)
-#define SCTLR_VALUE_MMU_ENABLE (SCTLR_I_CACHE_ENABLED | SCTLR_D_CACHE_ENABLED | SCTLR_MMU_ENABLED)
+#define SCTLR_VALUE_MMU_ENABLE (SCTLR_MMU_ENABLED)
 
 // ***************************************
 // HCR_EL2, Hypervisor Configuration Register (EL2), Page 2487 of AArch64-Reference-Manual.
@@ -58,8 +58,9 @@
 #define MAIR_DEVICE_ATTR (MAIR_nGnRnE << 2)
 #define MAIR_NON_TRANSIENT (1 << 3)
 #define MAIR_WRITE_BACK (1 << 2)
-#define MAIR_OUTER_POLICY (MAIR_NON_TRANSIENT | MAIR_WRITE_BACK)
-#define MAIR_INNER_POLICY (MAIR_NON_TRANSIENT | MAIR_WRITE_BACK)
+#define MAIR_NO_CACHE 0b0100
+#define MAIR_OUTER_POLICY (MAIR_NO_CACHE)
+#define MAIR_INNER_POLICY (MAIR_NO_CACHE)
 #define MAIR_NORMAL_ATTR ((MAIR_OUTER_POLICY << 4) | (MAIR_INNER_POLICY))
 #define MAIR_VALUE ((MAIR_DEVICE_ATTR << 8) | (MAIR_NORMAL_ATTR))
 
@@ -68,8 +69,8 @@
 // ***************************************
 
 #define TCR_T0SZ 33
-#define TCR_IRGN0 (0b11 << 8)
-#define TCR_ORGN0 (0b11 << 10)
+#define TCR_IRGN0 (0b00 << 8)
+#define TCR_ORGN0 (0b00 << 10)
 #define TCR_SH0 (0b11 << 12)
 #define TCR_TG0 (0b00 << 14)
 #define TCR_HA (1 << 39)

@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <sys/_intsup.h>
 
-void timer_fini(void);
 void timer_microsleep(unsigned long micros);
 void timer_millisleep(unsigned long millis);
 int timer_register(unsigned long micros, bool repeating, void (*handler)(unsigned, void *), void *data);
