@@ -4,7 +4,7 @@ OBJ_FILES := $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 DIRS := $(shell find "$(MODULE_DIR)" -type d | tr '\n' ' ')
 
 $(BUILD_DIR)/$(MODULE_DIR)/%: INC_FLAGS := $(INC_FLAGS) -I$(MODULE_DIR)/override -I$(MODULE_DIR)/include
-$(BUILD_DIR)/$(MODULE_DIR)/%: CFLAGS += -DAARCH64=1 -DRASPPI=1
+$(BUILD_DIR)/$(MODULE_DIR)/%: CFLAGS += -DAARCH64=1 -DRASPPI=3
 
 $(BUILD_DIR)/$(MODULE_DIR).ko: $(OBJ_FILES)
 	$(CC) -r $(filter-out %.mk,$^) -o $@

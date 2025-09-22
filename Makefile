@@ -24,13 +24,15 @@ run: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw # -d int
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s \
+	-d guest_errors,unimp -device usb-kbd -device usb-mouse -semihosting
 
 run-vnc: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -vnc :1,websocket=on # -d int
 
 debug-vnc: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s -vnc :1,websocket=on # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s -vnc :1,websocket=on \
+	-d guest_errors,unimp -device usb-kbd -device usb-mouse -semihosting
 
 uart0:
 	nc -lkvp 4444

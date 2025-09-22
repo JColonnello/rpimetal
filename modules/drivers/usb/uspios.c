@@ -77,8 +77,8 @@ int SetPowerStateOn(unsigned nDeviceId)
 	mbox[1] = MBOX_REQUEST;
 
 	mbox[2] = 0x00028001; // Set power state
-	mbox[3] = 0;
-	mbox[4] = 8;            // Buffer size
+	mbox[3] = 8;            // Buffer size
+	mbox[4] = 0;
 	mbox[5] = nDeviceId;    // Device ID
 	mbox[6] = 1 | (1 << 1); // Power state (on) and wait for completion
 
@@ -86,6 +86,7 @@ int SetPowerStateOn(unsigned nDeviceId)
 
 	mbox_call(MBOX_CH_PROP);
 	mbox_wait();
+	mbox_print();
 
 	if ((mbox[6] & 0b11) == 1)
 		return 1; // Success, power state set to on
@@ -94,21 +95,20 @@ int SetPowerStateOn(unsigned nDeviceId)
 }
 
 int GetMACAddress(unsigned char Buffer[6]) // "get board MAC address"
-
 {
-	mbox[0] = 6 * 4;
+	mbox[0] = 8 * 4;
 	mbox[1] = MBOX_REQUEST;
-
 	mbox[2] = 0x00010003; // Get MAC address
-	mbox[3] = 0;
-	mbox[4] = 0; // Buffer size
-
-	mbox[5] = MBOX_TAG_LAST; // End of tags
+	mbox[3] = 8; // Buffer size
+	mbox[4] = 0;
+	mbox[5] = 0; // Space for 4 bytes of MAC address
+	mbox[6] = 0; // Space for 2 more bytes of MAC address
+	mbox[7] = MBOX_TAG_LAST; // End of tags
 
 	mbox_call(MBOX_CH_PROP);
 	mbox_wait();
 
-	if (mbox[4] != 6)
+	if ((mbox[4] & 0xFF) != 6)
 		return 0;
 
 	unsigned char *mac = (unsigned char *)&mbox[5];
@@ -141,6 +141,7 @@ void LogWrite(const char *pSource, unsigned Severity, const char *pMessage, ...)
 	}
 	printf("[%s] %s: ", severity_str, pSource);
 	vprintf(pMessage, args);
+	puts("");
 	va_end(args);
 }
 

@@ -6,7 +6,7 @@
 		{
 			"label": "build",
 			"type": "shell",
-			"command": "bear --append -- make -r -j8 all",
+			"command": "bear --append -- make -r -j8 all && make sync",
 			"problemMatcher": [
 				"$gcc"
 			],

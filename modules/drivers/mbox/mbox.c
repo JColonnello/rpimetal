@@ -72,7 +72,7 @@ void mbox_wait()
 	for (int i = 200; i > 0 && !(mbox[1] & MBOX_RESPONSE); i--)
 	{
 		/* wait for the response */
-		timer_microsleep(10);
+		timer_millisleep(10);
 	}
 }
 
