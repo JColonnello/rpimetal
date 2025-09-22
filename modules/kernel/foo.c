@@ -7,6 +7,7 @@
 #include <attrib.h>
 #include <boot/custom.h>
 #include <drivers/display.h>
+#include <drivers/sd2.h>
 #include <drivers/timer.h>
 #include <drivers/uart.h>
 #include <sys/unistd.h>
@@ -77,6 +78,8 @@ void _init(struct boot_info *info, union boot_userdata userdata)
 	stdlib_set_mem_limits(info->memory_start, info->memory_end);
 }
 
+#define COUNTER_SECTOR 1
+
 int kernel_start(struct boot_info *info, union boot_userdata userdata)
 {
 	struct boot_customdata *data = userdata.custom;
@@ -86,6 +89,24 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 	test(in, out);
 	printf("out = { %d, %d, %d, %d }\n", out[0], out[1], out[2], out[3]);
 	puts("Done!\n");
+
+	static unsigned char buffer[512];
+	unsigned int *counter = (unsigned int *)(buffer + 508);
+	// initialize EMMC and detect SD card type
+	if (sd_init() == SD_OK)
+	{
+		// read the second sector after our bss segment
+		if (sd_readblock(COUNTER_SECTOR, buffer, 1))
+		{
+			// increase boot counter
+			(*counter)++;
+			// save the sector
+			if (sd_writeblock(buffer, COUNTER_SECTOR, 1))
+			{
+				printf("Boot counter %08X written to SD card.\n", *counter);
+			}
+		}
+	}
 
 	// puts("Starting display driver...\n");
 	// lfb_init();
