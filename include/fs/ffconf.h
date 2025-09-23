@@ -23,20 +23,20 @@
 /   2: f_opendir(), f_readdir() and f_closedir() are removed in addition to 1.
 /   3: f_lseek() function is removed in addition to 2. */
 
-#define FF_USE_FIND 0
+#define FF_USE_FIND 1
 /* This option switches filtered directory read functions, f_findfirst() and
 /  f_findnext(). (0:Disable, 1:Enable 2:Enable with matching altname[] too) */
 
 #define FF_USE_MKFS 0
 /* This option switches f_mkfs(). (0:Disable or 1:Enable) */
 
-#define FF_USE_FASTSEEK 0
+#define FF_USE_FASTSEEK 1
 /* This option switches fast seek feature. (0:Disable or 1:Enable) */
 
-#define FF_USE_EXPAND 0
+#define FF_USE_EXPAND 1
 /* This option switches f_expand(). (0:Disable or 1:Enable) */
 
-#define FF_USE_CHMOD 0
+#define FF_USE_CHMOD 1
 /* This option switches attribute control API functions, f_chmod() and f_utime().
 /  (0:Disable or 1:Enable) Also FF_FS_READONLY needs to be 0 to enable this option. */
 
@@ -44,7 +44,7 @@
 /* This option switches volume label API functions, f_getlabel() and f_setlabel().
 /  (0:Disable or 1:Enable) */
 
-#define FF_USE_FORWARD 0
+#define FF_USE_FORWARD 1
 /* This option switches f_forward(). (0:Disable or 1:Enable) */
 
 #define FF_USE_STRFUNC 0
@@ -74,7 +74,7 @@
 / Locale and Namespace Configurations
 /---------------------------------------------------------------------------*/
 
-#define FF_CODE_PAGE 932
+#define FF_CODE_PAGE 850
 /* This option specifies the OEM code page to be used on the target system.
 /  Incorrect code page setting can cause a file open failure.
 /
@@ -102,7 +102,7 @@
 /     0 - Include all code pages above and configured by f_setcp()
 */
 
-#define FF_USE_LFN 0
+#define FF_USE_LFN 3
 #define FF_MAX_LFN 255
 /* The FF_USE_LFN switches the support for LFN (long file name).
 /
@@ -121,7 +121,7 @@
 /  memory for the working buffer, memory management functions, ff_memalloc() and
 /  ff_memfree() exemplified in ffsystem.c, need to be added to the project. */
 
-#define FF_LFN_UNICODE 0
+#define FF_LFN_UNICODE 2
 /* This option switches the character encoding on the API when LFN is enabled.
 /
 /   0: ANSI/OEM in current CP (TCHAR = char)
@@ -139,7 +139,7 @@
 /  the file names to read. The maximum possible length of the read file name depends
 /  on character encoding. When LFN is not enabled, these options have no effect. */
 
-#define FF_FS_RPATH 0
+#define FF_FS_RPATH 2
 /* This option configures support for relative path feature.
 /
 /   0: Disable relative path and remove related API functions.
@@ -217,7 +217,7 @@
 /  Instead of private sector buffer eliminated from the file object, common sector
 /  buffer in the filesystem object (FATFS) is used for the file data transfer. */
 
-#define FF_FS_EXFAT 0
+#define FF_FS_EXFAT 1
 /* This option switches support for exFAT filesystem. (0:Disable or 1:Enable)
 /  To enable exFAT, also LFN needs to be enabled. (FF_USE_LFN >= 1)
 /  Note that enabling exFAT discards ANSI C (C89) compatibility. */
@@ -235,7 +235,7 @@
 /  FF_NORTC_MDAY and FF_NORTC_YEAR have no effect.
 /  These options have no effect in read-only configuration (FF_FS_READONLY = 1). */
 
-#define FF_FS_CRTIME 0
+#define FF_FS_CRTIME 1
 /* This option enables(1)/disables(0) the timestamp of the file created. When
 /  set 1, the file created time is available in FILINFO structure. */
 
