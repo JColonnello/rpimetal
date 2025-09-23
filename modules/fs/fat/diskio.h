@@ -5,7 +5,7 @@
 #ifndef _DISKIO_DEFINED
 #define _DISKIO_DEFINED
 
-#include "ff.h"
+#include <fs/ff.h>
 
 /* Status of Disk Functions */
 typedef BYTE DSTATUS;
