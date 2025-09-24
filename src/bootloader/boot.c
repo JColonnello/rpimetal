@@ -6,6 +6,7 @@
 #include <drivers/irq.h>
 #include <drivers/timer.h>
 #include <drivers/uart.h>
+#include <fs/ff.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/unistd.h>
@@ -49,6 +50,26 @@ int main(void)
 		{.name = "__bss_end__", .address = NULL},
 		{.name = "_fini", .address = fini},
 	};
+
+	FATFS FatFs; /* FatFs work area needed for each volume */
+	FRESULT fr;
+	if ((fr = f_mount(&FatFs, "", 1)) != FR_OK) /* Give a work area to the default drive */
+		return -1;
+
+	DIR dj;      /* Directory object */
+	FILINFO fno; /* File information */
+
+	fr = f_findfirst(&dj, &fno, "", "*");
+
+	while (fr == FR_OK && fno.fname[0])
+	{
+		/* Repeat while an item is found */
+		printf("%s\n", fno.fname);  /* Print the object name */
+		fr = f_findnext(&dj, &fno); /* Search for next item */
+	}
+
+	f_closedir(&dj);
+	return 1;
 
 	void *mem_end = sbrk(0);
 	loader_init();
