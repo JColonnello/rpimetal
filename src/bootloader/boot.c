@@ -7,6 +7,7 @@
 #include <drivers/timer.h>
 #include <drivers/uart.h>
 #include <fs/ff.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/unistd.h>
@@ -69,6 +70,23 @@ int main(void)
 	}
 
 	f_closedir(&dj);
+
+	FIL file;
+	fr = f_open(&file, "counter", FA_READ | FA_WRITE | FA_OPEN_ALWAYS);
+	// Read counter (2 bytes) in file, print, increment, and write back
+	uint16_t counter = 0;
+	UINT br, bw;
+	fr = f_read(&file, &counter, sizeof(counter), &br);
+	printf("Counter: %u\n", counter);
+	counter++;
+	fr = f_lseek(&file, 0);
+	fr = f_write(&file, &counter, sizeof(counter), &bw);
+	fr = f_close(&file);
+	if (br != sizeof(counter) || bw != sizeof(counter))
+	{
+		printf("Error reading/writing counter\n");
+	}
+
 	return 1;
 
 	void *mem_end = sbrk(0);

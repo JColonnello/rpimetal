@@ -55,9 +55,16 @@ int _write(int fd, const void *buf, size_t count)
 	return written;
 }
 
+int _gettimeofday(struct timeval *restrict tp, void *restrict tzp)
+{
+	tp->tv_sec = 1758682781;
+	tp->tv_usec = 0;
+	return 0;
+}
+
 void undef_func(const char *func)
 {
-	printf("Function undefined: %s\n", func);
+	fprintf(stderr, "Call to undefined function: %s\n", func);
 	proc_hang();
 }
 

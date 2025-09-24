@@ -42,7 +42,6 @@ stub _lseek
 stub _read
 stub _kill
 stub _getpid
-stub _gettimeofday
 stub getwd
 stub lstat
 stub _open
