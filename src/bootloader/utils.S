@@ -38,13 +38,10 @@ delay:
 .string "\func"
 .endm
 
-stub _lseek
-stub _read
 stub _kill
 stub _getpid
 stub getwd
 stub lstat
-stub _open
 stub posix_memalign
 stub _stat
 stub _unlink
