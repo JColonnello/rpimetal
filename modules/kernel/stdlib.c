@@ -7,6 +7,12 @@
 #include <sys/stat.h>
 #include <sys/unistd.h>
 
+constructor static void init_mux_channels()
+{
+	mux_channel_add(0, 1024, false); // stdin/stdout
+	mux_channel_add(1, 1024, false); // stderr
+}
+
 int _fstat(int fildes, struct stat *buf)
 {
 	if (fildes >= 0 && fildes <= 2)

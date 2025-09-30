@@ -93,8 +93,6 @@ int main(void)
 		printf("Error reading/writing counter\n");
 	}
 
-	return 1;
-
 	void *mem_end = sbrk(0);
 	loader_init();
 	loader_add_starting_symbols(sizeof(symbols) / sizeof(*symbols), symbols);
