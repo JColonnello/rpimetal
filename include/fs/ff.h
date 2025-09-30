@@ -209,7 +209,7 @@ typedef char TCHAR;
 
 	/* File object structure (FIL) */
 
-	typedef struct
+	typedef struct FIL
 	{
 		FFOBJID obj;  /* Object identifier (must be the 1st member to detect invalid object pointer) */
 		BYTE flag;    /* File status flags */
@@ -231,7 +231,7 @@ typedef char TCHAR;
 
 	/* Directory object structure (DIR) */
 
-	typedef struct
+	typedef struct DIR
 	{
 		FFOBJID obj; /* Object identifier (must be the 1st member to detect invalid object pointer) */
 		DWORD dptr;  /* Current read/write offset */

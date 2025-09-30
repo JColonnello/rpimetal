@@ -541,16 +541,12 @@ DIR *opendir(const char *name)
 		return NULL;
 	}
 
-	DIR *dirp = malloc(sizeof(DIR) + sizeof(fd_type_t));
+	DIR *dirp = malloc(sizeof(DIR));
 	if (!dirp)
 	{
 		errno = ENOMEM;
 		return NULL;
 	}
-
-	// Store the type after the DIR structure
-	fd_type_t *type_ptr = (fd_type_t *)((char *)dirp + sizeof(DIR));
-	*type_ptr = FD_TYPE_FATFS;
 
 	FRESULT res = f_opendir((DIR *)dirp, remaining_path);
 	if (res != FR_OK)

@@ -3,10 +3,10 @@
 #include <arm/irq.h>
 #include <attrib.h>
 #include <boot/custom.h>
+#include <dirent.h>
 #include <drivers/irq.h>
 #include <drivers/timer.h>
 #include <drivers/uart.h>
-#include <fs/ff.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +42,7 @@ void noreturn kernel_jump()
 }
 
 extern noreturn void proc_hang();
+static void mount_fs();
 
 int main(void)
 {
@@ -52,37 +53,42 @@ int main(void)
 		{.name = "_fini", .address = fini},
 	};
 
-	FATFS FatFs; /* FatFs work area needed for each volume */
-	FRESULT fr;
-	if ((fr = f_mount(&FatFs, "", 1)) != FR_OK) /* Give a work area to the default drive */
-		return -1;
+	mount_fs();
 
-	DIR dj;      /* Directory object */
-	FILINFO fno; /* File information */
+	DIR *dir;
+	struct dirent *entry;
 
-	fr = f_findfirst(&dj, &fno, "", "*");
-
-	while (fr == FR_OK && fno.fname[0])
+	dir = opendir("sd:");
+	if (!dir)
 	{
-		/* Repeat while an item is found */
-		printf("%s\n", fno.fname);  /* Print the object name */
-		fr = f_findnext(&dj, &fno); /* Search for next item */
+		fprintf(stderr, "Error opening directory\n");
+		return -1;
 	}
 
-	f_closedir(&dj);
+	while ((entry = readdir(dir)) != NULL)
+	{
+		printf("%s\n", entry->d_name);
+	}
 
-	FIL file;
-	fr = f_open(&file, "counter", FA_READ | FA_WRITE | FA_OPEN_ALWAYS);
+	closedir(dir);
+
+	FILE *file;
+	file = fopen("sd:counter", "r+");
+	if (!file)
+	{
+		fprintf(stderr, "Error opening counter file\n");
+		return -1;
+	}
 	// Read counter (2 bytes) in file, print, increment, and write back
 	uint16_t counter = 0;
-	UINT br, bw;
-	fr = f_read(&file, &counter, sizeof(counter), &br);
+	int br, bw;
+	br = fread(&counter, sizeof(counter), 1, file);
 	printf("Counter: %u\n", counter);
 	counter++;
-	fr = f_lseek(&file, 0);
-	fr = f_write(&file, &counter, sizeof(counter), &bw);
-	fr = f_close(&file);
-	if (br != sizeof(counter) || bw != sizeof(counter))
+	rewind(file);
+	bw = fwrite(&counter, sizeof(counter), 1, file);
+	fclose(file);
+	if (br != 1 || bw != 1)
 	{
 		printf("Error reading/writing counter\n");
 	}
@@ -116,4 +122,16 @@ int main(void)
 	fputs("Jumping to kernel...\n", stdout);
 
 	return 0;
+}
+
+#include <fs/ff.h>
+static void mount_fs()
+{
+	static FATFS FatFs; /* FatFs work area needed for each volume */
+	FRESULT fr;
+	if ((fr = f_mount(&FatFs, "", 1)) != FR_OK) /* Give a work area to the default drive */
+	{
+		fputs("Error mounting filesystem\n", stderr);
+		exit(1);
+	}
 }
