@@ -1,3 +1,4 @@
+MODULE_DIR := modules/libc
 _OUTPUT := $(BUILD_DIR)/$(MODULES_DIR)/libc
 _LIBC := /opt/aarch64-none-elf/aarch64-none-elf/lib/libc.a
 _LIBGCC := /opt/aarch64-none-elf/lib/gcc/aarch64-none-elf/14.2.0/libgcc.a
@@ -12,9 +13,9 @@ $(_OUTPUT)/libc_a-%.o $(_OUTPUT)/libm_a-%.o:
 
 # $(_OUTPUT)/printf.ko: $(filter $(_OUTPUT)/%printf.o $(_OUTPUT)/%print_r.o, $(_OBJS))
 
-$(_OUTPUT)/libc.ko: $(_LIBC)
+$(_OUTPUT)/libc.ko: $(_LIBC) $(MODULE_DIR)/wrappers.c
 $(_OUTPUT)/libgcc.ko: $(_LIBGCC)
 
 $(_OUTPUT)/%.ko:
 	@mkdir -p $(dir $@)
-	$(CC) -r -o $@ -Wl,--whole-archive $^
+	$(CC) -r -o $@ -Wl,--whole-archive,--wrap=_free_r,--wrap=_malloc_r $^
