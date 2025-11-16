@@ -71,10 +71,19 @@ cp -ar /build/pkg/lib/ $output/ && \
 cp -an /build/obj/*/lib*.a $output/lib/ && \
 rm -rf /build
 
+FROM curlimages/curl AS clangd
+ENV CLANGD_VERSION=snapshot_20251109
+USER root
+# Download and install clangd from github
+RUN curl -L -o clangd.zip https://github.com/clangd/clangd/releases/download/$CLANGD_VERSION/clangd-linux-$CLANGD_VERSION.zip && \
+	mkdir -p /opt/clangd && \
+    unzip clangd.zip -d /opt/clangd && \
+    rm clangd.zip
+
 FROM base AS toolchain
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt update && apt install -y make git clangd bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim socat gcc
+apt update && apt install -y make git bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim socat gcc
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password
@@ -93,6 +102,7 @@ COPY --from=source /usr/local/src /usr/local/src
 COPY --from=compile /usr/lib/x86_64-linux-gnu/libisl.* /usr/lib/x86_64-linux-gnu/libmpc.* /usr/lib/x86_64-linux-gnu/libmpfr.* /usr/lib/x86_64-linux-gnu/libgmp.* /usr/lib/x86_64-linux-gnu/
 COPY --from=cross /opt/aarch64-none-elf /opt/aarch64-none-elf
 COPY --from=libs /pkg/opt /opt
+COPY --from=clangd /opt/clangd/* /usr/local/
 # RUN cp -a /opt/aarch64-none-elf/compile_commands.json /usr/local/src/
 ENV PATH="/opt/aarch64-none-elf/bin:$PATH" 
 # Set the locale
