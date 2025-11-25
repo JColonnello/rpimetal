@@ -101,6 +101,6 @@ class AddAssemblySymbols(gdb.Command):
 
 		if not args.bootloader:
 			print("Resetting symbol table...")
-			gdb.execute("file build/modules/kernel.ko", to_string=False)
+			gdb.execute("file build/kernel.ko", to_string=False)
 
 AddAssemblySymbols()

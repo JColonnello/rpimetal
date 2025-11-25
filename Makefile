@@ -1,13 +1,12 @@
 include Makefile.inc
 
+BOOTLOADER = bootloaders/elf-symbol
+KERNEL = examples/0A_misc
+
 BUILD_DIR = build
 MODULES_DIR = modules
 IMAGE = output/kernel8.img
-BOOT_SRC_DIR = src/bootloader
-KERNEL = kernel
-BOOT_MODULES = arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart loader
 MODULES = testing/test
-MODULES += $(KERNEL)
 
 # Phony targets
 
@@ -41,7 +40,7 @@ mux-tcp:
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
 
-undef: $(BUILD_DIR)/$(MODULES_DIR)/kernel.ko
+undef: $(BUILD_DIR)/kernel.ko
 	@$(ARMGNU)-readelf -s $< | grep UND || true
 
 sync:
@@ -65,17 +64,12 @@ $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
 	@mkdir -p $(@D)
 	$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
 
-# Bootloader binary
+# Kernel image
 
-C_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.c')
-ASM_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.s')
-OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
-
-$(BUILD_DIR)/kernel8.elf: $(BOOT_SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
-	$(CC) $(CFLAGS) -Wl,--unresolved-symbols=ignore-all -o $@ -T $^
+include $(BOOTLOADER)/Makefile
+include $(KERNEL)/Makefile
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
-#	$(LD) $(LDFLAGS) -T $(BOOT_SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
 	$(ARMGNU)-objcopy $< -O binary $@
 
 # Object files
