@@ -19,7 +19,8 @@
 				"webfreak.debug",
 				"llvm-vs-code-extensions.vscode-clangd",
 				"ms-vscode.hexeditor",
-				"wakatime.vscode-wakatime"
+				"wakatime.vscode-wakatime",
+				"nguyenngoclong.terminal-keeper"
 			]
 		}
 	},
