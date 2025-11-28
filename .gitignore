@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 *.mk
+!config.example.mk
 
 # Object files
 *.o

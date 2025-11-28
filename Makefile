@@ -1,12 +1,26 @@
-include Makefile.inc
+DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 
-BOOTLOADER = bootloaders/elf-symbol
-KERNEL = examples/0A_misc
+ifeq (,$(wildcard ./config.mk))
+include config.example.mk
+else
+include config.mk
+endif
+
+# Toolchain configuration
+
+TOOLCHAIN ?= /opt/aarch64-none-elf/bin
+ARMGNU ?= $(TOOLCHAIN)/aarch64-none-elf
+CC = $(ARMGNU)-gcc
+LD = $(ARMGNU)-ld
+AS = $(ARMGNU)-gcc
+AR = $(ARMGNU)-ar
+
+# Dirs and files
 
 BUILD_DIR = build
 MODULES_DIR = modules
+INC_DIRS = include
 IMAGE = output/kernel8.img
-MODULES = testing/test
 
 # Phony targets
 
