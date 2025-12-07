@@ -8,12 +8,12 @@ endif
 
 # Toolchain configuration
 
-TOOLCHAIN ?= /opt/aarch64-none-elf/bin
-ARMGNU ?= $(TOOLCHAIN)/aarch64-none-elf
-CC = $(ARMGNU)-gcc
-LD = $(ARMGNU)-ld
-AS = $(ARMGNU)-gcc
-AR = $(ARMGNU)-ar
+TRIPLET = aarch64-none-elf
+ARMGNU ?= /opt/$(TRIPLET)/bin/$(TRIPLET)
+CC := $(ARMGNU)-gcc
+LD := $(ARMGNU)-ld
+AS := $(ARMGNU)-gcc
+AR := $(ARMGNU)-ar
 
 # Dirs and files
 
@@ -78,7 +78,7 @@ $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/%/Makefile
 
 $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
 	@mkdir -p $(@D)
-	$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
+	@$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
 
 # Kernel image
 

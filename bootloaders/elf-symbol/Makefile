@@ -2,7 +2,7 @@
 DIR = bootloaders/elf-symbol
 
 SOURCE_FILES := $(shell find $(DIR) -iname '*.c' -or -iname '*.s')
-BOOT_MODULES = arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart loader
+BOOT_MODULES := arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart loader
 
 $(BUILD_DIR)/kernel8.elf: $(DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
 	$(CC) $(CFLAGS) -Wl,--unresolved-symbols=ignore-all -o $@ -T $^
