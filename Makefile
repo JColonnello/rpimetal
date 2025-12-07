@@ -60,9 +60,11 @@ undef: $(BUILD_DIR)/kernel.ko
 sync:
 	rsync --delete -trv output/ rsync://$(RSYNC_SERVER):873/volume/
 
-# Empty recipes
+# General variables
 
-%.d: ;
+OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
+
+# Empty recipes
 
 # Module file and recipe
 
@@ -88,15 +90,15 @@ $(IMAGE): $(BUILD_DIR)/kernel8.elf
 
 # Object files
 
-$(BUILD_DIR)/%.c.o $(BUILD_DIR)/%.c.d &: %.c
+$(BUILD_DIR)/%.c.o : %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.S.o $(BUILD_DIR)/%.S.d &: %.S
+$(BUILD_DIR)/%.S.o : %.S
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.s.o $(BUILD_DIR)/%.s.d &: %.s
+$(BUILD_DIR)/%.s.o : %.s
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
@@ -110,7 +112,7 @@ output/multiplex: toolchain/multiplex.c
 	gcc -g -o $@ $<
 
 ifneq (clean,$(MAKECMDGOALS))
--include $(OBJ_FILES:%.o=%.d)
--include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
+include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
+include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
