@@ -1,4 +1,3 @@
-_OUTPUT := $(BUILD_DIR)/$(MODULES_DIR)/libc
 _LIBC := /opt/$(TRIPLET)/$(TRIPLET)/lib/libc.a
 _LIBGCC := /opt/$(TRIPLET)/lib/gcc/$(TRIPLET)/14.2.0/libgcc.a
 
@@ -15,9 +14,9 @@ _LIBGCC := /opt/$(TRIPLET)/lib/gcc/$(TRIPLET)/14.2.0/libgcc.a
 
 # $(_OUTPUT)/printf.ko: $(filter $(_OUTPUT)/%printf.o $(_OUTPUT)/%print_r.o, $(_OBJS))
 
-$(_OUTPUT)/libc.ko: $(_LIBC)
-$(_OUTPUT)/libgcc.ko: $(_LIBGCC)
+$(OUTPUT_DIR)/libc.ko: $(_LIBC)
+$(OUTPUT_DIR)/libgcc.ko: $(_LIBGCC)
 
-$(_OUTPUT)/%.ko:
+$(OUTPUT_DIR)/%.ko:
 	@mkdir -p $(dir $@)
-	$(CC) -r -o $@ -Wl,--whole-archive $^
+	$(CC) -r -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive

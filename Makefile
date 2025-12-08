@@ -1,5 +1,3 @@
-DIR = $(dir $(lastword $(MAKEFILE_LIST)))
-
 ifeq (,$(wildcard ./config.mk))
 include config.example.mk
 else
@@ -64,6 +62,9 @@ sync:
 
 # General variables
 
+DIR = $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+OUTPUT_DIR = $(BUILD_DIR)/$(DIR)
+OUTPUT_KO = $(OUTPUT_DIR).ko
 OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 
 # Empty recipes
@@ -71,10 +72,6 @@ OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 # Module file and recipe
 
 include $(MODULES_DIR)/Makefile
-
-$(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
-	@mkdir -p $(@D)
-	@$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
 
 # Kernel image
 
@@ -98,8 +95,6 @@ $(BUILD_DIR)/%.s.o : %.s
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-# Other Makefiles
-
 # Tools
 
 .PHONY:
@@ -107,9 +102,16 @@ multiplex: output/multiplex
 output/multiplex: toolchain/multiplex.c
 	gcc -g -o $@ $<
 
+# Other Makefiles
+
 ifneq (clean,$(MAKECMDGOALS))
 include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
-include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
 -include $(STD_MODULES:%=$(MODULES_DIR)/%/Makefile)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
+
+$(BUILD_DIR)/%.ko: SOURCE_FILES = $(shell find "$*" -name '*.c' -or -iname '*.s')
+.SECONDEXPANSION:
+$(BUILD_DIR)/%.ko: $$(OBJ_FILES)
+	@mkdir -p $(@D)
+	$(CC) -r $(OBJ_FILES) -o $@ $(LDLIBS)
