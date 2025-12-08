@@ -3,4 +3,4 @@ sys/mux drivers/sd drivers/sd2 dummy
 MULTI_MODULES = testing/test3 libc
 
 $(BUILD_DIR)/%.ko:
-	$(CC) -r $(OBJ_FILES) -o $@
+	$(CC) -r $(OBJ_FILES) -o $@ $(LDLIBS)

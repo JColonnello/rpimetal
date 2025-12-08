@@ -2,7 +2,7 @@
 
 BOOTLOADER = bootloaders/elf-symbol
 KERNEL = examples/0A_misc
-MODULES = testing/test
+EXTRA_MODULES = testing/test
 
 # Remote server configuration
 

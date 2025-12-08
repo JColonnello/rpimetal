@@ -31,7 +31,9 @@ all: $(IMAGE)
 clean:
 	rm -rf $(BUILD_DIR)
 
-rebuild: clean all
+rebuild:
+	$(MAKE) clean
+	$(MAKE) all
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw # -d int
@@ -70,20 +72,14 @@ OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 
 include $(MODULES_DIR)/Makefile
 
-$(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko): %.ko: %.mk
-
-$(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/%/Makefile
-	@mkdir -p $(@D)
-	ln -f $< $@
-
 $(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
 	@mkdir -p $(@D)
 	@$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
 
 # Kernel image
 
-include $(BOOTLOADER)/Makefile
 include $(KERNEL)/Makefile
+include $(BOOTLOADER)/Makefile
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
 	$(ARMGNU)-objcopy $< -O binary $@
@@ -114,5 +110,6 @@ output/multiplex: toolchain/multiplex.c
 ifneq (clean,$(MAKECMDGOALS))
 include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
 include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
+-include $(STD_MODULES:%=$(MODULES_DIR)/%/Makefile)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
