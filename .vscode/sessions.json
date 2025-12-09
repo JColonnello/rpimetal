@@ -5,7 +5,7 @@
     "activateOnStartup": true,
     "keepExistingTerminals": false,
     "sessions": {
-        "default": [
+        "muxed": [
             {
                 "name": "Shell",
                 "icon": "terminal",
@@ -51,6 +51,35 @@
                     "make mux-tcp"
                 ]
             }
+        ],
+        "default": [
+            {
+                "name": "Shell",
+                "icon": "terminal",
+                "color": "terminal.ansiGreen",
+                "commands": [
+                    ""
+                ]
+            },
+            [
+                {
+                    "name": "Terminal",
+                    "autoExecuteCommands": true,
+                    "icon": "output",
+                    "color": "terminal.ansiBrightWhite",
+                    "commands": [
+                        "nc -lkvp 4444"
+                    ]
+                },
+                {
+                    "name": "QEMU",
+                    "icon": "vm",
+                    "color": "terminal.ansiMagenta",
+                    "commands": [
+                        "make run-vnc"
+                    ]
+                }
+            ]
         ]
     }
 }
