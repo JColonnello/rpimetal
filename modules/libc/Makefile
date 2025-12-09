@@ -19,4 +19,4 @@ $(OUTPUT_DIR)/libgcc.ko: $(_LIBGCC)
 
 $(OUTPUT_DIR)/%.ko:
 	@mkdir -p $(dir $@)
-	$(CC) -r -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
+	$(CC) -r -Wl,--whole-archive $^ -Wl,--no-whole-archive -o $@

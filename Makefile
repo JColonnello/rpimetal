@@ -114,4 +114,4 @@ $(BUILD_DIR)/%.ko: SOURCE_FILES = $(shell find "$*" -name '*.c' -or -iname '*.s'
 .SECONDEXPANSION:
 $(BUILD_DIR)/%.ko: $$(OBJ_FILES)
 	@mkdir -p $(@D)
-	$(CC) -r $(OBJ_FILES) -o $@ $(LDLIBS)
+	$(CC) -r $(OBJ_FILES) $(LDLIBS) -o $@ 
