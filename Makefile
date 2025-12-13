@@ -63,8 +63,11 @@ sync:
 # General variables
 
 DIR = $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+$(BUILD_DIR)/%: DIR = $(basename $(@:$(BUILD_DIR)/%=%))
 OUTPUT_DIR = $(BUILD_DIR)/$(DIR)
 OUTPUT_KO = $(OUTPUT_DIR).ko
+SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
+$(BUILD_DIR)/%.ko $(BUILD_DIR)/%.elf: SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
 OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 
 # Empty recipes
@@ -75,7 +78,7 @@ include $(MODULES_DIR)/Makefile
 
 # Kernel image
 
-include $(KERNEL)/Makefile
+-include $(KERNEL)/Makefile
 include $(BOOTLOADER)/Makefile
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
@@ -110,7 +113,6 @@ include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
 
-$(BUILD_DIR)/%.ko: SOURCE_FILES = $(shell find "$*" -name '*.c' -or -iname '*.s')
 .SECONDEXPANSION:
 $(BUILD_DIR)/%.ko: $$(OBJ_FILES)
 	@mkdir -p $(@D)
