@@ -1,8 +1,8 @@
 # Bootloader, kernel, and modules to use
 
-BOOTLOADER = bootloaders/elf-symbol
-KERNEL = examples/0A_misc
-EXTRA_MODULES = testing/test
+BOOTLOADER = bootloaders/linked
+KERNEL = examples/no-libc-uart
+# EXTRA_MODULES = testing/test
 
 # Remote server configuration
 

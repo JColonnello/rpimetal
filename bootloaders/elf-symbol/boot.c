@@ -56,7 +56,7 @@ int main(void)
 	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(libc_libgcc), "build/modules/libc/libgcc.ko");
 	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(libc_libc), "build/modules/libc/libc.ko");
 	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(kernel), "build/kernel.ko");
-	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(modules_testing_test), "build/modules/testing/test.ko");
+	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(modules_testing_test), "build/modules/testing/test.ko");
 	loader_print_tls_layout(tls_schema);
 	tcb = loader_create_tcb();
 	// once everything is patched, we should be able to run test_function
