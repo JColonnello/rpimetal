@@ -1,8 +1,7 @@
 #include <drivers/simple-uart.h>
 #include <stddef.h>
-#include <stdlib.h>
-#define TFP_PRINTF_ALIAS
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/printf.h>
 
 static void _putc(void *p, char c)

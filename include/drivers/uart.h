@@ -13,3 +13,5 @@ size_t uart_rx_available();
 size_t uart_tx_available();
 void uart_send_raw(const char *s, size_t n);
 void uart_flush_tx();
+
+extern unsigned uart_target_baud; // Desired baud rate

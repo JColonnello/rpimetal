@@ -432,9 +432,9 @@ int loader_load_file(FILE *file, const char *filename)
 	{
 		asymbol *symbol = symbols[i];
 		// Symbols in undefined section have to be pointed to external symbols
+		const symbol_data *ref = search_symbol(symbol->name);
 		if (bfd_is_und_section(symbol->section))
 		{
-			const symbol_data *ref = search_symbol(symbol->name);
 			if (ref != NULL)
 				symbol->value = (symvalue)ref->address;
 			else
@@ -444,6 +444,12 @@ int loader_load_file(FILE *file, const char *filename)
 				symbol->flags |= undefined_flag;
 				fprintf(stderr, "Undefined symbol `%s' pointed to 0x%04lx\n", symbol->name, symbol->value);
 			}
+		}
+		// Weak symbols get linked to external if available
+		else if (symbol->flags & BSF_WEAK && ref != NULL)
+		{
+			symbol->value = (symvalue)ref->address;
+			symbol->section = bfd_abs_section_ptr;
 		}
 		else if (symbol->flags & BSF_GLOBAL)
 		{
