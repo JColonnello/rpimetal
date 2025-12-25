@@ -5,7 +5,7 @@
 
 #define CONCAT(p1, p2) p1##p2
 #define EVALUATOR(p1, p2) CONCAT(p1, p2)
-#define _BINARY_SYMBOL_PREFIX(SYMBOL) CONCAT(_binary_build_modules_, SYMBOL)
+#define _BINARY_SYMBOL_PREFIX(SYMBOL) CONCAT(_binary_build_, SYMBOL)
 #define _BINARY_START(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_start)
 #define _BINARY_END(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_end)
 #define FILE_FROM_SYMBOL_FUNC_CALL(NAME) _##NAME##_get_file()

@@ -247,12 +247,13 @@ tx:
 	*UART0_IMSC &= ~INT_TX; // disable TX interrupt
 }
 
+weak unsigned uart_target_baud = 921600; // Desired baud rate
+
 /**
  * Set baud rate and characteristics (115200 8N1) and map to GPIO
  */
 constructor static void uart_init()
 {
-	const unsigned target_baud = 921600;        // Desired baud rate
 	const unsigned long target_freq = 48000000; // Desired UART clock frequency
 
 	// Initialize ring buffers
@@ -287,7 +288,7 @@ constructor static void uart_init()
 	if (freq != target_freq)
 		set_clock(target_freq);
 	freq = get_measured_clock();
-	divisor = freq / (16.0f * target_baud);
+	divisor = freq / (16.0f * uart_target_baud);
 	idiv = (unsigned)divisor;
 	fdiv = (unsigned)((divisor - (unsigned)divisor) * 64 + 0.5f);
 	divisor = fdiv / 64.0f + idiv;
@@ -299,9 +300,9 @@ constructor static void uart_init()
 		idiv,
 		fdiv,
 		divisor,
-		target_baud,
+		uart_target_baud,
 		baud,
-		((float)baud - target_baud) / target_baud * 100.0f
+		((float)baud - uart_target_baud) / uart_target_baud * 100.0f
 	);
 
 	/* initialize UART */

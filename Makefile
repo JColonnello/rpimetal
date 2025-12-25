@@ -1,13 +1,24 @@
-include Makefile.inc
+ifeq (,$(wildcard ./config.mk))
+include config.example.mk
+else
+include config.mk
+endif
+
+# Toolchain configuration
+
+TRIPLET = aarch64-none-elf
+ARMGNU ?= /opt/$(TRIPLET)/bin/$(TRIPLET)
+CC := $(ARMGNU)-gcc
+LD := $(ARMGNU)-ld
+AS := $(ARMGNU)-gcc
+AR := $(ARMGNU)-ar
+
+# Dirs and files
 
 BUILD_DIR = build
 MODULES_DIR = modules
+INC_DIRS = include
 IMAGE = output/kernel8.img
-BOOT_SRC_DIR = src/bootloader
-KERNEL = kernel
-BOOT_MODULES = arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart loader drivers/sd2 fs/fat
-MODULES = testing/test
-MODULES += $(KERNEL)
 
 # Phony targets
 
@@ -18,7 +29,9 @@ all: $(IMAGE)
 clean:
 	rm -rf $(BUILD_DIR)
 
-rebuild: clean all
+rebuild:
+	$(MAKE) clean
+	$(MAKE) all
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw # -d int
@@ -41,58 +54,49 @@ mux-tcp:
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
 
-undef: $(BUILD_DIR)/$(MODULES_DIR)/kernel.ko
+undef: $(BUILD_DIR)/kernel.ko
 	@$(ARMGNU)-readelf -s $< | grep UND || true
 
 sync:
 	rsync --delete -trv output/ rsync://$(RSYNC_SERVER):873/volume/
 
-# Empty recipes
+# General variables
 
-%.d: ;
+DIR = $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+$(BUILD_DIR)/%: DIR = $(basename $(@:$(BUILD_DIR)/%=%))
+OUTPUT_DIR = $(BUILD_DIR)/$(DIR)
+OUTPUT_KO = $(OUTPUT_DIR).ko
+SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
+$(BUILD_DIR)/%.ko $(BUILD_DIR)/%.elf: SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
+OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
+
+# Empty recipes
 
 # Module file and recipe
 
 include $(MODULES_DIR)/Makefile
 
-$(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko): %.ko: %.mk
+# Kernel image
 
-$(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/%/Makefile
-	@mkdir -p $(@D)
-	ln -f $< $@
-
-$(BUILD_DIR)/$(MODULES_DIR)/%.mk: $(MODULES_DIR)/gen_mod_mk.sh
-	@mkdir -p $(@D)
-	$(MODULES_DIR)/gen_mod_mk.sh "$(MODULES_DIR)/$*" $(BUILD_DIR)
-
-# Bootloader binary
-
-C_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.c')
-ASM_FILES = $(shell find $(BOOT_SRC_DIR) -iname '*.s')
-OBJ_FILES = $(C_FILES:%=$(BUILD_DIR)/%.o) $(ASM_FILES:%=$(BUILD_DIR)/%.o)
-
-$(BUILD_DIR)/kernel8.elf: $(BOOT_SRC_DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/payload.o $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
-	$(CC) $(CFLAGS) -Wl,--unresolved-symbols=ignore-all -o $@ -T $^
+-include $(KERNEL)/Makefile
+include $(BOOTLOADER)/Makefile
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
-#	$(LD) $(LDFLAGS) -T $(BOOT_SRC_DIR)/linker.ld -o $(BUILD_DIR)/kernel8.elf $(OBJ_FILES) -l:crti.o -l:crtbegin.o -l:crt0.o -lbfd -lz -liberty -lc -lgcc -lsframe -l:crtend.o -l:crtn.o $(BUILD_DIR)/modules/payload.o
 	$(ARMGNU)-objcopy $< -O binary $@
 
 # Object files
 
-$(BUILD_DIR)/%.c.o $(BUILD_DIR)/%.c.d &: %.c
+$(BUILD_DIR)/%.c.o : %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.S.o $(BUILD_DIR)/%.S.d &: %.S
+$(BUILD_DIR)/%.S.o : %.S
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
 
-$(BUILD_DIR)/%.s.o $(BUILD_DIR)/%.s.d &: %.s
+$(BUILD_DIR)/%.s.o : %.s
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $(INC_FLAGS) -MMD -c $< -o $(BUILD_DIR)/$<.o
-
-# Other Makefiles
 
 # Tools
 
@@ -101,8 +105,15 @@ multiplex: output/multiplex
 output/multiplex: toolchain/multiplex.c
 	gcc -g -o $@ $<
 
+# Other Makefiles
+
 ifneq (clean,$(MAKECMDGOALS))
--include $(OBJ_FILES:%.o=%.d)
--include $(STD_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.mk)
+include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
+-include $(STD_MODULES:%=$(MODULES_DIR)/%/Makefile)
 include $(MULTI_MODULES:%=$(MODULES_DIR)/%/Makefile)
 endif
+
+.SECONDEXPANSION:
+$(BUILD_DIR)/%.ko: $$(OBJ_FILES)
+	@mkdir -p $(@D)
+	$(CC) -r $(OBJ_FILES) $(LDLIBS) -o $@ 

@@ -7,7 +7,6 @@
 #include <drivers/irq.h>
 #include <drivers/timer.h>
 #include <limits.h>
-#include <sys/_intsup.h>
 #include <sys/stat.h>
 
 #define LOCAL_TIMER_INTERVAL 38400 // 1ms
@@ -110,6 +109,15 @@ void timer_handler()
 	// Pack timers if needed
 	if (pack)
 		pack_timers();
+}
+
+weak void __assert_func(const char *file, int line, const char *func, const char *failedexpr)
+{
+	// Print assertion failure message
+	// printf("Assertion failed: (%s), function %s, file %s, line %d.\n", failedexpr, func, file, line);
+	// Halt the system
+	while (1)
+		asm volatile("wfi");
 }
 
 void timer_microsleep(unsigned long micros)

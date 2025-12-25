@@ -1,2 +1,4 @@
 Diagnostics:
   Suppress: []
+Documentation:
+  CommentFormat: Doxygen

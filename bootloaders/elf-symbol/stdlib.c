@@ -1,0 +1,121 @@
+#include "sys/mux.h"
+#include <attrib.h>
+#include <drivers/uart.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+extern const void __end;
+static void *curr_break = (void *)&__end;
+noreturn extern void proc_hang();
+
+void *_sbrk(intptr_t increment)
+{
+	if (increment == 0)
+		return curr_break;
+	if (curr_break + increment < &__end)
+	{
+		errno = ENOMEM;
+		return (void *)-1;
+	}
+
+	void *last_break = curr_break;
+	curr_break += increment;
+	return last_break;
+}
+
+int _write(int fd, const void *buf, size_t count)
+{
+	int channel;
+	switch (fd)
+	{
+	case 1:
+		channel = 0;
+		break;
+	case 2:
+		channel = 1;
+		break;
+	default:
+		errno = EBADF;
+		return -1;
+	}
+	ssize_t written = count;
+	for (;;)
+	{
+		written = mux_send(channel, buf, count);
+		if (count != 0 && written == 0)
+			asm("wfi");
+		else
+			break;
+	}
+	uart_send_buffer(NULL, 0); // Flush output
+	return written;
+}
+
+void undef_func(const char *func)
+{
+	printf("Function undefined: %s\n", func);
+	proc_hang();
+}
+
+int _fstat(int fildes, struct stat *buf)
+{
+	if (fildes >= 0 && fildes <= 2)
+	{
+		*buf = (struct stat){
+			.st_mode = S_IFCHR,
+		};
+		return 0;
+	}
+	errno = EBADF;
+	return -1;
+}
+
+int _isatty(int fd)
+{
+	if (fd >= 0 && fd <= 2)
+		return true;
+	else
+	{
+		errno = EBADF;
+		return false;
+	}
+}
+
+int _close(int fd)
+{
+	if (fd >= 0 && fd <= 2)
+		return 0;
+	else
+	{
+		errno = EBADF;
+		return -1;
+	}
+}
+
+extern void noreturn kernel_jump();
+void _exit(int status)
+{
+	if (status == 0)
+		kernel_jump();
+	else
+		proc_hang();
+}
+
+long sysconf(int name)
+{
+	switch (name)
+	{
+	// The maximum number of files that a process can have open at any time.  Must not be less than _POSIX_OPEN_MAX (20)
+	case _SC_OPEN_MAX:
+		return 4096;
+	case _SC_PAGESIZE:
+		return 4096;
+	default:
+		printf("Unknown sysconf variable: %d\n", name);
+		return 0;
+	}
+}
