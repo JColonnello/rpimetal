@@ -1,4 +1,18 @@
 .text
+
+.global atexit
+.weak atexit
+atexit:
+	ret
+	
+.globl exit
+.weak exit
+exit:
+	bl libc_fini_array
+0: 
+	wfi
+	b 	0b
+
 .globl _start
 _start:
 	// When jumping to the kernel, x30 (lr) is set to the next instruction

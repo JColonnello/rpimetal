@@ -39,8 +39,6 @@ void noreturn kernel_jump()
 	__builtin_unreachable();
 }
 
-extern noreturn void proc_hang();
-
 int main(void)
 {
 	symbol_data symbols[] = {

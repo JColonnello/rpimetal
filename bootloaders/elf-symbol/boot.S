@@ -9,9 +9,7 @@ boot:
 	cbz	x0, master			// Hang for all non-primary CPU
 	b	proc_hang
 
-.globl proc_hang, exit
-.weak exit
-exit:
+.globl proc_hang
 proc_hang: 
 	wfi
 	b 	proc_hang
@@ -63,13 +61,6 @@ memset:
 	bne 1b
 memset_done:
 	ldp x29, x30, [sp], #16
-	ret
-
-.global atexit, __libc_init_array, _init
-.weak atexit, __libc_init_array, _init
-atexit:
-_init:
-__libc_init_array:
 	ret
 
 .globl _cpu_init_hook
