@@ -12,6 +12,7 @@ boot:
 .globl proc_hang, exit
 .weak exit
 exit:
+	bl libc_fini_array
 proc_hang: 
 	wfi
 	b 	proc_hang
@@ -48,7 +49,8 @@ jump_el1:
 el1_entry:
 	adr	x0, __stack
 	mov sp, x0
-	b	_start
+	bl _cpu_init_hook
+	b	_boot_setup
 
 .global memset
 .weak memset
@@ -65,11 +67,9 @@ memset_done:
 	ldp x29, x30, [sp], #16
 	ret
 
-.global atexit, __libc_init_array, _init
-.weak atexit, __libc_init_array, _init
+.global atexit
+.weak atexit
 atexit:
-_init:
-__libc_init_array:
 	ret
 
 .globl _cpu_init_hook
@@ -78,6 +78,12 @@ _cpu_init_hook:
 	mov x29, sp
 	// Setup plain memory map
 	bl mmu_init
+	// Set bss to zero
+	ldr x0, .LC3
+	mov w1, #0
+	ldr x2, .LC4
+	sub x2, x2, x0
+	bl memset
 	// Set tbss to zero
 	ldr x0, .LC0
 	mov w1, #0
@@ -97,3 +103,7 @@ _cpu_init_hook:
 	.dword __tbss_end__
 .LC2:
 	.quad _tcb
+.LC3:
+	.dword __bss_start__
+.LC4:
+	.dword __bss_end__
