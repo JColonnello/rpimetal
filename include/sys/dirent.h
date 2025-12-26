@@ -1,4 +1,5 @@
 #pragma once
+#include <sys/types.h>
 
 typedef struct DIR DIR;
 struct dirent
