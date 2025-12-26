@@ -1,0 +1,1 @@
+KERNEL_MODULES := arm/irq drivers/mbox drivers/display

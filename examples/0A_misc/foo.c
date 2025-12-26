@@ -27,7 +27,6 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata)
 			printf("Current time: %lu us\n", time);
 			printf("Received %lu bytes: %.*s\n", n, (int)n, s);
 		}
-		asm("wfi");
 	}
 
 	return 0;

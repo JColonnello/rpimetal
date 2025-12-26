@@ -23,9 +23,9 @@
  *
  */
 
+#include <attrib.h>
 #include <drivers/mbox.h>
 #include <stdio.h>
-#include <sys/_intsup.h>
 
 static unsigned int width, height, pitch, isrgb; /* dimensions and channel order */
 static unsigned char *lfb;                       /* raw frame buffer address */
@@ -41,7 +41,7 @@ static unsigned char *lfb;                       /* raw frame buffer address */
 /**
  * Set screen resolution to 1024x768
  */
-void lfb_init()
+static constructor void lfb_init()
 {
 	mbox[0] = 35 * 4;
 	mbox[1] = MBOX_REQUEST;
