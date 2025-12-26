@@ -220,6 +220,8 @@ constructor static void init_fd_system(void)
 	fd_table[2].flags = O_WRONLY;
 
 	// Initialize mux channels for stdio
+	mux_channel_remove(0);
+	mux_channel_remove(1);
 	mux_channel_add(0, MUX_BUFFER_SIZE, false); // stdin/stdout
 	mux_channel_add(1, MUX_BUFFER_SIZE, false); // stderr
 

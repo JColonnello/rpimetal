@@ -38,8 +38,12 @@ static channel_tree *channels = NULL;
 static char rx_mesg_buf[MAX_MESSAGE_SIZE + HEADER_SIZE];
 static unsigned rx_mesg_bytes;
 
+weak size_t mux_stdio_buffer_size = 1024;
+
 constructor void callbacks()
 {
+	mux_channel_add(0, mux_stdio_buffer_size, false); // stdin/stdout
+	mux_channel_add(1, mux_stdio_buffer_size, false); // stderr
 	uart_set_rx_callback(mux_process_input);
 	uart_set_tx_callback(mux_process_output);
 }

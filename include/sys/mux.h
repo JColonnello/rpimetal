@@ -60,6 +60,10 @@ size_t mux_rx_available(int16_t channel);
  * @return The amount of space available to write
  */
 size_t mux_tx_available(int16_t channel);
+/**
+ * Buffer size for stdio channels (0 and 1)
+ */
+extern size_t mux_stdio_buffer_size;
 
 void mux_process_input(size_t available);
 void mux_process_output(size_t available);
