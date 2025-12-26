@@ -67,7 +67,6 @@ $(BUILD_DIR)/%: DIR = $(basename $(@:$(BUILD_DIR)/%=%))
 OUTPUT_DIR = $(BUILD_DIR)/$(DIR)
 OUTPUT_KO = $(OUTPUT_DIR).ko
 SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
-$(BUILD_DIR)/%.ko $(BUILD_DIR)/%.elf: SOURCE_FILES = $(shell find "$(DIR)" -name '*.c' -or -iname '*.s')
 OBJ_FILES = $(SOURCE_FILES:%=$(BUILD_DIR)/%.o)
 
 # Empty recipes

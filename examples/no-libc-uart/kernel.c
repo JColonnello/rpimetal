@@ -19,7 +19,7 @@ void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 
-int main(void)
+int kernel_start()
 {
 	init_printf(0, _putc);
 	printf("Hello, RPi Metal!\n");
@@ -27,6 +27,5 @@ int main(void)
 	// unsigned int r=*((volatile unsigned int*)0xFFFFFFFFFF000000);
 	// r++;
 
-	exit(1);
 	return 0;
 }

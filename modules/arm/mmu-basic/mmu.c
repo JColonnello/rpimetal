@@ -182,7 +182,7 @@ bool mmu_is_enabled()
 
 constructor void mmu_init()
 {
-	static void *table;
+	__attribute__((section(".bss.mmu"))) static void *table;
 	if (table == NULL)
 	{
 		// We need to set up the translation table
