@@ -1,10 +1,11 @@
-ifeq (,$(wildcard ./config.mk))
-include config.example.mk
-else
-include config.mk
-endif
+# Toolchain flags
 
-# Toolchain configuration
+override INC_FLAGS += $(addprefix -I,$(INC_DIRS))
+override LDFLAGS += -L/opt/$(TRIPLET)/lib/gcc/$(TRIPLET)/14.2.0/ -L/opt/$(TRIPLET)/$(TRIPLET)/lib/
+override CFLAGS += -Wall -Wno-unknown-pragmas -std=gnu11 -ggdb -g3 -mtp=el1 -nolibc -ftls-model=local-exec -Wno-trigraphs -march=armv8-a -mtune=cortex-a53
+override ASFLAGS += -Wall -g -march=armv8-a -mtune=cortex-a53
+
+# Toolchain location
 
 TRIPLET = aarch64-none-elf
 ARMGNU ?= /opt/$(TRIPLET)/bin/$(TRIPLET)
@@ -12,6 +13,14 @@ CC := $(ARMGNU)-gcc
 LD := $(ARMGNU)-ld
 AS := $(ARMGNU)-gcc
 AR := $(ARMGNU)-ar
+
+# Include user configuration
+
+ifeq (,$(wildcard ./config.mk))
+include config.example.mk
+else
+include config.mk
+endif
 
 # Dirs and files
 
@@ -49,7 +58,7 @@ debug-vnc: all
 uart0:
 	nc -lkvp 4444
 
-mux-tcp:
+mux-tcp: output/multiplex
 	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'output/multiplex config-mult.txt',nofork
 
 toolchain: toolchain/Dockerfile
