@@ -30,7 +30,7 @@
 			},
 		},
 		{
-			"name": "(C++) Launch",
+			"name": "Debug (VNC)",
 			"type": "cppdbg",
 			"request": "launch",
 			"miDebuggerServerAddress": ":1234",
@@ -38,7 +38,7 @@
 			"program": "./build/kernel8.elf",
 			"cwd": "${workspaceFolder}",
 			"MIMode": "gdb",
-			// "preLaunchTask": "debug",
+			"preLaunchTask": "debug-vnc",
 			"setupCommands": [
 				{
 					"description": "Enable pretty-printing for gdb",

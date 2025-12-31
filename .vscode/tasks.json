@@ -24,12 +24,13 @@
 			}
 		},
 		{
-			"label": "debug",
+			"label": "debug-vnc",
 			"type": "shell",
-			"command": "make debug",
+			"dependsOn": "build",
+			"command": "make debug-vnc",
 			"presentation": {
 				"echo": true,
-				"reveal": "always",
+				"reveal": "silent",
 				"focus": false,
 				"panel": "dedicated",
 				"showReuseMessage": false,
@@ -40,6 +41,28 @@
 				"kind": "test",
 				"isDefault": true
 			},
+			"problemMatcher": [
+				{
+					"pattern": [
+						{
+							"regexp": ".",
+							"file": 1,
+							"line": 1,
+							"column": 1,
+							"message": 1
+						}
+					],
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": {
+							"regexp": "."
+						},
+						"endsPattern": {
+							"regexp": "."
+						}
+					},
+				}
+			]
 		}
 	]
 }
