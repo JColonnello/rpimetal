@@ -19,12 +19,13 @@ BUILD_DIR = build
 MODULES_DIR = modules
 INC_DIRS = include
 IMAGE = output/kernel8.img
+SD = sd.img
 
 # Phony targets
 
 .PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc sync mux-tcp
 
-all: $(IMAGE)
+all: $(IMAGE) $(SD)
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -34,16 +35,16 @@ rebuild:
 	$(MAKE) all
 
 run: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw # -d int
 
 debug: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw -S -s # -d int
 
 run-vnc: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -vnc :1,websocket=on # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw -vnc :1,websocket=on # -d int
 
 debug-vnc: all
-	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=sd.img,if=sd,format=raw -S -s -vnc :1,websocket=on # -d int
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw -S -s -vnc :1,websocket=on # -d int
 
 uart0:
 	nc -lkvp 4444
@@ -81,7 +82,14 @@ include $(MODULES_DIR)/Makefile
 include $(BOOTLOADER)/Makefile
 
 $(IMAGE): $(BUILD_DIR)/kernel8.elf
+	@mkdir -p $(@D)
 	$(ARMGNU)-objcopy $< -O binary $@
+
+# Disk image
+
+$(SD):
+	truncate -s 64M $@
+	mkfs.vfat -F 32 $@
 
 # Object files
 
