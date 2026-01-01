@@ -83,7 +83,7 @@ RUN curl -L -o clangd.zip https://github.com/clangd/clangd/releases/download/$CL
 FROM base AS toolchain
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt update && apt install -y make git bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim socat gcc
+apt update && apt install -y make git bear gnupg2 sudo bash-completion qemu-system-aarch64 netcat-openbsd python3 libpython3.13 locales rsync apt-file vim socat gcc dosfstools mtools
 ARG UNAME=rpi
 ARG UID=1000
 ARG UPASS=password
