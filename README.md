@@ -225,7 +225,9 @@ The Raspberry Pi boot sequence involves multiple stages:
 
 ## License
 
-[Add your license here]
+This repository is licensed under the GNU Lesser General Public License
+v3.0 or later. See the `LICENSE` file at the project root for the
+full text.
 
 ## Acknowledgments
 
