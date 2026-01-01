@@ -50,7 +50,7 @@ This example uses the full module set:
 
 ### stdlib.h / stdlib.c
 
-Local helper for memory management:
+Local helper for memory management and libc syscall adapters.
 
 ```c
 // stdlib.h
@@ -64,7 +64,10 @@ void stdlib_set_mem_limits(void *start, void *end) {
 }
 ```
 
-This bridges the boot info to Newlib's `sbrk()` function for heap allocation.
+This file provides the minimal syscall stubs and memory-limit helpers
+used by Newlib/libc (see `examples/0A_misc/stdlib.c` for the implemented
+syscalls). Call `stdlib_set_mem_limits()` from `_init()` so `malloc()` and
+other heap-using functions work correctly.
 
 ### foo.c
 
@@ -284,9 +287,9 @@ The separation keeps memory management reusable across examples.
 - Integration with `sys/mux`
 
 `drivers/simple-uart` provides:
-- Polled I/O only
-- Simpler, fewer dependencies
-- No multiplexing support
+- Lightweight UART support with interrupt-driven TX/RX (simpler API)
+- Fewer dependencies and smaller footprint
+- Does not provide multiplexing integration (use `drivers/uart` for mux)
 
 ### Memory Map
 

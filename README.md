@@ -116,12 +116,13 @@ make run
 
 ### 3. Debug
 
-To start QEMU paused and waiting for a debugger:
-```bash
-make debug-vnc
-```
+Use the VS Code debugger (F5) with the 'Debug (VNC)' configuration.
 
-Then use the VS Code debugger (F5) or connect GDB manually:
+By default the VS Code debug task launches the server and starts QEMU
+for you; running `make debug-vnc` is optional unless you need to start
+QEMU manually or require an explicit VNC invocation. To connect GDB
+manually run:
+
 ```bash
 aarch64-none-elf-gdb build/kernel8.elf -ex "target remote :1234"
 ```

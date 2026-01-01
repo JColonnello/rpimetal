@@ -68,6 +68,15 @@ total_size = HEADER_SIZE + length + padding
 total_size % LENGTH_MULT == 0
 ```
 
+Why 8 bytes? The Raspberry Pi UART driver and the kernel-side UART
+interrupt configuration are tuned to the PL011 FIFO behavior. The
+UART receive/transmit IRQs are commonly configured to fire when the
+FIFO is half-full (8 bytes). To avoid partial FIFO fragments and
+spurious interrupt-driven fragmentation, packets are aligned to an
+8-byte boundary. The mux layer and the host-side multiplexer server
+automatically add zero-padding when needed, so application code may
+send arbitrary-length payloads and the mux will handle alignment.
+
 Examples:
 - Payload of 4 bytes: `4 + 4 = 8` → no padding needed
 - Payload of 10 bytes: `4 + 10 = 14` → 2 bytes padding → 16 bytes total

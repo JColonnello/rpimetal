@@ -49,7 +49,7 @@ Drivers for Raspberry Pi peripherals.
 | Module | Description |
 |--------|-------------|
 | `drivers/uart` | Full-featured PL011 UART driver with buffered I/O, callbacks, configurable baud rate. |
-| `drivers/simple-uart` | Minimal UART driver for basic output. Simpler API, fewer dependencies. |
+| `drivers/simple-uart` | Minimal UART driver for basic output. Lightweight implementation with optional interrupt-driven TX/RX; does not integrate with `sys/mux`. |
 | `drivers/timer` | ARM generic timer and BCM2837 local timer support. Provides `timer_monotonic()` for timing. |
 | `drivers/mbox` | Mailbox interface for GPU communication. Used to query/set system properties. |
 | `drivers/display` | Framebuffer driver. Sets up screen resolution, provides `lfb_showpicture()` for drawing. |

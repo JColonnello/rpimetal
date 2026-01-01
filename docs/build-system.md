@@ -67,6 +67,39 @@ RSYNC_SERVER = 192.168.0.199
 
 If `config.mk` doesn't exist, the build system falls back to `config.example.mk`.
 
+### Using predefined Make variables
+
+When writing example or module `Makefile`s you can leverage several
+predefined variables and helper recipes exposed by the top-level
+`Makefile`. These make it easy to refer to module source files and
+output paths without hardcoding directory names.
+
+- `DIR`: the current module/example directory (basename)
+- `BUILD_DIR`: the top-level build output directory (`build`)
+- `OUTPUT_DIR`: the per-module output directory (`$(BUILD_DIR)/$(DIR)`)
+- `OUTPUT_KO`: the resulting relocatable object for the module (`$(OUTPUT_DIR).ko`)
+- `SOURCE_FILES`: all C/assembly source files in the module directory
+- `OBJ_FILES`: the corresponding object filenames under `$(BUILD_DIR)` (used by the generic `.ko` recipe)
+
+Example snippet you can reuse in an example `Makefile`:
+
+```makefile
+# KERNEL_MODULES defined by the example top-level Makefile
+KERNEL_MODULES := drivers/uart sys/mux
+
+# The top-level build system sets DIR and BUILD_DIR for you. Use
+# `OUTPUT_DIR` and `OUTPUT_KO` to refer to build outputs.
+$(OUTPUT_KO): $(OBJ_FILES)
+
+# Use SOURCE_FILES to add extra build steps or to inspect which
+# sources will be compiled for the current module.
+$(info Building module $(DIR) with sources: $(SOURCE_FILES))
+```
+
+The top-level `Makefile` also defines empty/default recipes and object
+rules so most modules require no special Makefile content — only
+module-specific flags or extra link libraries when necessary.
+
 ## Key Make Targets
 
 | Target | Description |

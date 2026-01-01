@@ -1,3 +1,15 @@
+/*
+ * Minimal syscall adapter for Newlib used by the examples.
+ *
+ * This file implements a small set of syscalls and helpers required
+ * by Newlib/libc (e.g. `_sbrk`, `_write`, `_read`, `_close`) as well
+ * as `stdlib_set_mem_limits()` which configures the heap bounds used
+ * by `_sbrk`.
+ *
+ * The implementation is intentionally small and depends on the
+ * project's multiplexing API (`mux_send`/`mux_recv`) for stdio.
+ */
+
 #include "attrib.h"
 #include <drivers/uart.h>
 #include <errno.h>
