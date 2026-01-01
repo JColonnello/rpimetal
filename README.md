@@ -1,72 +1,236 @@
 # RPiMetal — SDK for baremetal development on Raspberry Pi 3
 
-An out-of-the-box development environment for baremetal programming on a physical or emulated Raspberry Pi 3B+. Designed primarily for use in education — to learn about kernel and operative systems and as an Arduino-like platform
+An out-of-the-box development environment for baremetal programming on a physical or emulated Raspberry Pi 3B+. Designed primarily for use in education — to learn about kernel and operating systems development, and as an Arduino-like platform for low-level programming.
 
-This project contains:
+## Features
 
-* A Docker image with all required tools preinstalled, including:
-	* GCC
-	* Binutils + GDB with Python support
-	* Pre-built Libraries such as libc (Newlib), libm, libz and libbfd
-	* clangd as language server (and [bear](https://github.com/rizsotto/Bear) to interface with the build system)
-	* Python
-	* [More programs and utilities...](toolchain/Dockerfile)
-* A preconfigured VS Code workspace, the recommended IDE to use for this project
-	* Devcontainer configuration
-	* Preinstalled extensions
-	* Debugger support
-	* Custom terminal layouts
-* Bootloaders with:
-	* ELF support
-	* Thread-local storage support
-	* Multiple ways to deploy the software to a physical device
-* Kernel modules implementing various drivers and functionalities
-	* Interrupt handling
-	* Framebuffer (display)
-	* UART
-	* SD card
-	* FAT32
-	* Mailbox interface
-	* Generic ARM timer and BCM2837 local timer
-	* ELF loader and one-way linker
-* A client and server for a custom multiplexer protocol to use over UART
-* An extensible build system using GNU Make
-* Multiple example programs
+* **Docker-based toolchain** with all required tools preinstalled:
+  * GCC cross-compiler (`aarch64-none-elf`)
+  * Binutils + GDB with Python support
+  * Pre-built libraries: libc (Newlib), libm, libz, and libbfd
+  * clangd language server (with [bear](https://github.com/rizsotto/Bear) for build system integration)
+  * QEMU for emulation
+  * [Full list of tools...](toolchain/Dockerfile)
+
+* **Preconfigured VS Code workspace** (recommended IDE):
+  * Dev Container configuration for instant setup
+  * Preinstalled extensions for C/C++ and ARM development
+  * Integrated debugger support
+  * Custom terminal layouts for QEMU and serial communication
+
+* **Multiple bootloaders** with different capabilities:
+  * Static linking (simplest approach)
+  * Dynamic ELF loading with runtime symbol resolution
+  * Thread-local storage (TLS) support
+  * [Bootloader documentation](bootloaders/README.md)
+
+* **Modular kernel components**:
+  * Interrupt handling (IRQ)
+  * Memory Management Unit (MMU) setup
+  * UART driver (PL011)
+  * Framebuffer display driver
+  * SD card and FAT32 filesystem
+  * Mailbox interface for GPU communication
+  * ARM generic timer and BCM2837 local timer
+  * ELF loader with libbfd-based symbol resolution
+  * [Module documentation](modules/README.md)
+
+* **Serial multiplexing protocol** for multi-channel communication over UART
+  * [Multiplexing documentation](docs/multiplexing.md)
+
+* **Extensible GNU Make build system**
+  * [Build system documentation](docs/build-system.md)
+
+* **Tutorial examples** with progressive complexity
+  * [Example tutorials](examples/README.md)
 
 ## Installation
 
-Clone the repo and open as devcontainer. Use image from dockerhub or build locally. Refer to [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) for details.
+### Prerequisites
 
-TODO: Write full instructions.
+* [Docker](https://www.docker.com/get-started) installed and running
+* [Visual Studio Code](https://code.visualstudio.com/) with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+* Git
 
-## Getting started
+### Setup
 
-To test that everything is working, build the project and run the default example in QEMU:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/rpimetal.git
+   cd rpimetal
+   ```
 
-1. In VS Code, open the project as a dev container
-1. In the "Terminal" tab you should see the program output (and be able to type input depending on the example)
-<!-- 1. Build the project using the "Build" task (Ctrl+Shift+B)
-1. In the "QEMU" terminal tab, run `make run-vnc` -->
+2. Open in VS Code:
+   ```bash
+   code .
+   ```
 
-### Configuration
+3. When prompted, click **"Reopen in Container"** (or use the command palette: `Dev Containers: Reopen in Container`). This will:
+   * Pull the `jcolonnello/rpimetal` Docker image (or build it locally)
+   * Mount the workspace inside the container
+   * Install recommended VS Code extensions
 
-To change the program to build and run, create a `config.mk` file based on the provided `config.example.mk` file
+4. Wait for the container to build and start. The first time may take a few minutes.
 
+### Building the Toolchain Locally (Optional)
+
+If you prefer to build the Docker image locally instead of pulling from Docker Hub:
+
+```bash
+make toolchain
 ```
+
+Then modify `.devcontainer/devcontainer.json` to use the local image:
+```json
+"build": {
+    "dockerfile": "../toolchain/Dockerfile"
+}
+```
+
+## Getting Started
+
+Once the dev container is running, test that everything works:
+
+### 1. Build and Run
+
+The project should build automatically when the container starts. You can also build manually:
+
+```bash
+make
+```
+
+To run in QEMU with VNC display:
+```bash
+make run-vnc
+```
+
+Or to use a graphical window for display:
+```bash
+make run
+```
+
+### 2. View Output
+
+* **Serial output**: Open a terminal and run `nc localhost 4444` (or use the preconfigured terminal tabs)
+* **VNC display**: Connect to `localhost:5901` with a VNC client, or use the VS Code Simple Browser
+
+### 3. Debug
+
+To start QEMU paused and waiting for a debugger:
+```bash
+make debug-vnc
+```
+
+Then use the VS Code debugger (F5) or connect GDB manually:
+```bash
+aarch64-none-elf-gdb build/kernel8.elf -ex "target remote :1234"
+```
+
+## Configuration
+
+To change which program to build and run, create a `config.mk` file:
+
+```bash
 cp config.example.mk config.mk
 ```
 
-Only two variables need to be set:
+Edit `config.mk` to set:
 
-* KERNEL: The kernel/program to run
-* BOOTLOADER: The bootloader to use to load the KERNEL
+```makefile
+# The kernel/program to build and run
+KERNEL = examples/no-libc-uart
 
-For more information, follow the [tutorial](examples/README.md) (TODO)
+# The bootloader to use
+BOOTLOADER = bootloaders/linked
 
-### Terminal
+# Optional: additional modules to include
+# EXTRA_MODULES = testing/test
+```
 
-Two terminal modes are supported: plain (or unmuxed) and muxed. In plain mode the program communicates through UART in plain ASCII text; in muxed mode the communication is multiplexed, allowing multiple channels of communication over a single UART connection.
+### Available Bootloaders
 
-Usually, a program is written to use either plain or muxed mode, and the active _terminal session_ should match the mode used. To switch between terminal sessions, use the 'Terminal Keeper' extension found in the primary side bar and select which one to use.
+| Bootloader | Description | Use Case |
+|------------|-------------|----------|
+| `bootloaders/linked` | Statically links kernel with startup code | Simple programs, no dynamic loading |
+| `bootloaders/elf-symbol` | Loads kernel as ELF, resolves symbols at runtime | Programs using modules, dynamic features |
+| `bootloaders/elf-uart` | (WIP) Loads ELF via UART | Development without SD card reflashing |
 
-To learn more about terminal sessions and muxed communication, read the [multiplexing documentation](docs/multiplexing.md) TODO
+See [bootloaders/](bootloaders/) for detailed documentation on each.
+
+## Terminal Modes
+
+Two terminal modes are supported:
+
+### Plain Mode (Unmuxed)
+The program communicates through UART in plain ASCII text. Use this for simple programs that only need stdin/stdout.
+
+### Muxed Mode
+Communication is multiplexed, allowing multiple channels over a single UART connection. This enables separate channels for stdout, stderr, debug output, file transfer, etc.
+
+To switch between terminal sessions, use the **Terminal Keeper** extension in the VS Code sidebar.
+
+For protocol details and implementation guide, see [docs/multiplexing.md](docs/multiplexing.md).
+
+## Architecture Overview
+
+RPiMetal follows a modular architecture where the final kernel image is composed of:
+
+1. **Bootloader**: Initializes the CPU, sets up the stack, and transfers control to the kernel. Different bootloaders support different loading strategies (static linking vs. dynamic ELF loading).
+
+2. **Kernel/Program**: Your application code, compiled as a relocatable object (`.ko` file).
+
+3. **Modules**: Reusable components (drivers, libraries) that can be linked statically or loaded dynamically depending on the bootloader used.
+
+### Boot Process
+
+The Raspberry Pi boot sequence involves multiple stages:
+
+1. The GPU loads `bootcode.bin` from the SD card
+2. `bootcode.bin` loads `start.elf`, which reads `config.txt`
+3. `start.elf` loads `kernel8.img` (our image) at address `0x80000` for AArch64
+4. The ARM CPU starts executing our bootloader code
+5. The bootloader initializes the system and jumps to the kernel entry point
+
+### Memory Layout
+
+```
+0x00000000 - 0x00080000  : Reserved (GPU, interrupt vectors)
+0x00080000 - 0x????????  : Kernel image (bootloader + kernel + modules)
+0x???????? - 0x3E000000  : Available RAM for heap/dynamic allocation
+0x3E000000 - 0x40000000  : Reserved (GPU memory, MMIO)
+0x40000000+              : Peripheral registers (MMIO)
+```
+
+## Documentation
+
+* [Build System](docs/build-system.md) — How the Makefile works, adding modules
+* [Multiplexing Protocol](docs/multiplexing.md) — Serial multiplexing for multi-channel I/O
+* [Modules](modules/README.md) — Available kernel modules and how to create new ones
+* [Bootloaders](bootloaders/README.md) — Different bootloader options and their use cases
+* [Examples/Tutorials](examples/README.md) — Step-by-step tutorials from simple to complex
+
+## Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `make` | Build the kernel image |
+| `make clean` | Remove build artifacts |
+| `make run` | Run in QEMU (serial only) |
+| `make run-vnc` | Run in QEMU with VNC display |
+| `make debug` | Run in QEMU, wait for debugger |
+| `make debug-vnc` | Run in QEMU with VNC, wait for debugger |
+| `make mux-tcp` | Start the serial multiplexer |
+| `make undef` | Show undefined symbols in kernel |
+
+## License
+
+[Add your license here]
+
+## Acknowledgments
+
+This project was inspired by and references several excellent bare-metal and OS development resources:
+
+* [raspberry-pi-os](https://github.com/s-matyukevich/raspberry-pi-os) by Sergey Matyukevich
+* [raspi3-tutorial](https://github.com/bztsrc/raspi3-tutorial) by Zoltan Baldaszti
+* [Circle](https://github.com/rsta2/circle) by Rene Stange
+* [rpi-boot](https://github.com/jncronin/rpi-boot) by jncronin

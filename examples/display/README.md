@@ -1,0 +1,213 @@
+# Tutorial 2: display
+
+Display an image on the screen using the framebuffer driver.
+
+## What You'll Learn
+
+- Using the framebuffer (display) driver
+- Mailbox communication with the GPU
+- Displaying graphics on the Raspberry Pi
+
+## Expected Output
+
+When you run this example with VNC, you should see an image displayed on the screen.
+
+```bash
+make run-vnc
+# Connect VNC client to localhost:5901
+```
+
+## Files
+
+### Makefile
+
+```makefile
+KERNEL_MODULES := arm/irq drivers/mbox drivers/display
+```
+
+This example uses:
+- `arm/irq`: Interrupt handling
+- `drivers/mbox`: Mailbox interface for communicating with the GPU
+- `drivers/display`: Framebuffer driver
+
+### kernel.c
+
+A very simple program:
+
+```c
+#include <drivers/display.h>
+#include <resources/zorzal.h>
+#include <stddef.h>
+
+int kernel_start()
+{
+    lfb_showpicture(header_data, height, width);
+
+    return 0;
+}
+```
+
+Let's break it down:
+
+```c
+#include <drivers/display.h>
+```
+
+The display driver header, which provides:
+- `lfb_init()`: Initialize framebuffer (called automatically)
+- `lfb_showpicture(data, h, w)`: Display a pixel array
+
+```c
+#include <resources/zorzal.h>
+```
+
+A pre-defined image header file. This contains:
+- `header_data`: Pixel data array (RGB format)
+- `height`: Image height in pixels
+- `width`: Image width in pixels
+
+The image is stored as a C array, compiled directly into the binary.
+
+```c
+lfb_showpicture(header_data, height, width);
+```
+
+Display the image centered on screen. The function:
+1. Initializes the framebuffer if not already done
+2. Calculates centering offset
+3. Copies pixels to the framebuffer
+
+## How the Display Works
+
+### Framebuffer Setup
+
+The display driver uses the mailbox interface to:
+1. Request a framebuffer from the GPU
+2. Set the desired resolution (default: 1024x768)
+3. Set color depth (32 bits per pixel)
+4. Get the framebuffer address and pitch
+
+### Drawing Pixels
+
+Once initialized, the framebuffer is just memory. Writing to it updates the screen:
+
+```c
+// Pseudocode for drawing a pixel
+uint32_t *framebuffer = lfb_get_buffer();
+int pitch = lfb_get_pitch();
+
+// Set pixel at (x, y) to color
+framebuffer[y * (pitch/4) + x] = color;
+```
+
+### Pixel Format
+
+Pixels are 32-bit ARGB:
+```
+| Alpha (8) | Red (8) | Green (8) | Blue (8) |
+```
+
+The image in `zorzal.h` is in RGB format, so the display driver may need to swap channels.
+
+## Running the Example
+
+1. Set up `config.mk`:
+   ```makefile
+   KERNEL = examples/display
+   BOOTLOADER = bootloaders/linked
+   ```
+
+2. Build and run with VNC:
+   ```bash
+   make
+   make run-vnc
+   ```
+
+3. Connect a VNC client to `localhost:5901`
+
+## Using Your Own Image
+
+To display a custom image:
+
+1. **Prepare the image**: Use an image editor to resize/crop as needed
+
+2. **Convert to C header**: Use GIMP's "Export as C source" or a tool like:
+   ```bash
+   convert image.png -depth 8 rgb:- | xxd -i > myimage.h
+   ```
+
+3. **Create a header file** in `include/resources/`:
+   ```c
+   // include/resources/myimage.h
+   #pragma once
+   
+   static const unsigned int width = 320;
+   static const unsigned int height = 240;
+   static const unsigned char header_data[] = {
+       // pixel data...
+   };
+   ```
+
+4. **Update kernel.c**:
+   ```c
+   #include <resources/myimage.h>
+   ```
+
+## Exercises
+
+1. **Change the image**: Create your own image header and display it
+
+2. **Draw shapes**: Instead of showing a picture, draw directly:
+   ```c
+   // Get framebuffer pointer and draw rectangles, lines, etc.
+   ```
+
+3. **Animation**: Create a simple animation loop:
+   ```c
+   while (1) {
+       // Draw frame
+       // Delay
+       // Update position
+   }
+   ```
+
+4. **Text rendering**: Combine with a font and render text on screen (advanced)
+
+## Common Issues
+
+### Black screen in VNC
+
+- Make sure VNC is connecting to the right port (5901)
+- Wait a moment for the image to render
+- Check QEMU is running with `-vnc :1`
+
+### Image looks wrong
+
+- Check pixel format (RGB vs BGR)
+- Verify image dimensions match the data
+
+### Build errors
+
+- Ensure `drivers/display` and `drivers/mbox` are in KERNEL_MODULES
+- Check the resource header exists and is correctly formatted
+
+## Technical Notes
+
+### Resolution
+
+The default resolution is set in the display driver. Common resolutions:
+- 640x480 (VGA)
+- 800x600 (SVGA)
+- 1024x768 (XGA)
+- 1920x1080 (Full HD)
+
+QEMU may limit available resolutions.
+
+### Pitch vs Width
+
+The "pitch" is the number of bytes per screen row. It may be larger than `width * bytes_per_pixel` due to alignment. Always use pitch for row calculations.
+
+## Next Steps
+
+- Combine with [no-libc-uart](../no-libc-uart/) for text output alongside graphics
+- Try [0A_misc](../0A_misc/) for interactive input/output

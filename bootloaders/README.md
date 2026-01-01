@@ -1,0 +1,72 @@
+# Bootloaders
+
+This directory contains different bootloaders for RPiMetal. Each bootloader initializes the Raspberry Pi hardware and transfers control to your kernel/program using different loading strategies.
+
+## Available Bootloaders
+
+| Bootloader | Description | Use Case |
+|------------|-------------|----------|
+| [linked](linked/) | Static linking | Simple programs, no dynamic loading |
+| [elf-symbol](elf-symbol/) | Dynamic ELF loading | Programs using modules, dynamic features, TLS |
+| [elf-uart](elf-uart/) | Load ELF via UART | (WIP) Development without SD card reflashing |
+
+## Choosing a Bootloader
+
+### Use `linked` when:
+- You're just getting started
+- Your program is simple and self-contained
+- You don't need dynamic module loading
+- You want the smallest/fastest boot
+
+### Use `elf-symbol` when:
+- You need the full module system
+- You want to load additional modules at runtime
+- You're using thread-local storage (TLS)
+- You're developing a more complex kernel
+
+### Use `elf-uart` when:
+- (Future) You want to load programs over serial without reflashing SD
+
+## Configuration
+
+Set the bootloader in `config.mk`:
+
+```makefile
+BOOTLOADER = bootloaders/linked
+# or
+BOOTLOADER = bootloaders/elf-symbol
+```
+
+## Common Boot Sequence
+
+All bootloaders share a common startup sequence:
+
+1. **Entry point** (`boot` in boot.S): First instruction executed at 0x80000
+2. **CPU identification**: Primary core continues, secondary cores halt
+3. **System register setup**: Enable SIMD, configure HCR, SCTLR
+4. **Exception level transition**: Drop from EL2 to EL1
+5. **Stack setup**: Initialize stack pointer
+6. **MMU initialization**: Set up basic memory mapping (optional)
+7. **C entry**: Jump to C code (`_boot_setup` or `_start`)
+
+## Boot Information
+
+Bootloaders pass a `boot_info` structure to the kernel:
+
+```c
+struct boot_info {
+    void *boot_memory_end;   // End of bootloader's memory usage
+    void *memory_start;      // Start of available heap memory
+    void *memory_end;        // End of available memory (0x3E000000)
+};
+```
+
+The kernel entry point signature:
+
+```c
+void _start(struct boot_info *info, union boot_userdata userdata);
+```
+
+## Creating a Custom Bootloader
+
+See [docs/build-system.md](../docs/build-system.md#adding-a-new-bootloader) for instructions on creating your own bootloader.
