@@ -123,6 +123,10 @@ output/multiplex: toolchain/multiplex.c
 
 # Other Makefiles
 
+$(MULTI_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko):
+	@echo "$@ cannot be built because the default .ko recipe does not apply to multi-modules"
+	@exit 1
+
 ifneq (clean,$(MAKECMDGOALS))
 include $(shell [ -d $(BUILD_DIR) ] && find $(BUILD_DIR) -name '*.d')
 -include $(STD_MODULES:%=$(MODULES_DIR)/%/Makefile)
