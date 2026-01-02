@@ -56,3 +56,6 @@ toolchain/tarballs/
 
 # Auxiliary miscelaneous files
 misc/
+
+# AI Agents configuration files
+.github/
