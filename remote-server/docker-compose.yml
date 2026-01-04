@@ -1,0 +1,41 @@
+services:
+  tftpd:
+    image: docker.io/kalaksi/tftpd
+    # You can also use GitLab as an alternative to Docker Hub:
+    # image: registry.gitlab.com/kalaksi-containers/tftpd
+    environment:
+      # An interface and a port to listen to. "0.0.0.0" means all interfaces
+      TFTPD_BIND_ADDRESS: "0.0.0.0:1069"
+      # Search the man page for --blocksize to learn more
+      TFTPD_EXTRA_ARGS: '--blocksize 1468'
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - SYS_CHROOT
+    ports:
+      - 69:1069/udp
+    volumes:
+      - tftpd-root:/tftpboot
+  rsync:
+    image: stefda/rsync
+    ports:
+      - 873:873
+    volumes:
+      - tftpd-root:/volume
+  dhcpd:
+    image: joebiellik/dhcpd
+    network_mode: "host"
+    volumes:
+      - ./dhcpd.conf:/etc/dhcp/dhcpd.conf
+  serial:
+    image: alpine/socat
+    command: TCP-LISTEN:4000,reuseaddr,fork /dev/ttyUSB0,b115200,raw,onlcr=0,echo=0,echoctl=0
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    ports:
+      - 4000:4000
+
+volumes:
+  tftpd-root:
