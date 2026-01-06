@@ -94,6 +94,10 @@ $(IMAGE): $(BUILD_DIR)/kernel8.elf
 	@mkdir -p $(@D)
 	$(ARMGNU)-objcopy $< -O binary $@
 
+output/config.txt: remote-server/config.txt
+	@mkdir -p $(@D)
+	cp $< $@
+
 # Disk image
 
 $(SD):

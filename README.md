@@ -207,6 +207,7 @@ The Raspberry Pi boot sequence involves multiple stages:
 * [Build System](docs/build-system.md) — How the Makefile works, adding modules
 * [Multiplexing Protocol](docs/multiplexing.md) — Serial multiplexing for multi-channel I/O
 * [Modules](modules/README.md) — Available kernel modules and how to create new ones
+* [Hardware deployment](docs/hardware-deploy.md) — Instructions for running on real hardware
 * [Bootloaders](bootloaders/README.md) — Different bootloader options and their use cases
 * [Examples/Tutorials](examples/README.md) — Step-by-step tutorials from simple to complex
 

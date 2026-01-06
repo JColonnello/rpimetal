@@ -1,0 +1,4 @@
+enable_uart=1
+arm_64bit=1
+uart_2ndstage=0
+dtoverlay=disable-bt
