@@ -294,9 +294,8 @@ Ensure your kernel includes the `sys/mux` module and use with the muxed terminal
 
 ### Garbled Output
 
-1. Check baud rate matches (default: 115200)
-2. Ensure packets are properly aligned (8-byte boundary)
-3. Verify header format (channel as int16, length as uint16)
+1. Check baud rate matches (default: 921600)
+2. Restart the host-side multiplexer
 
 ### Channel Not Found
 

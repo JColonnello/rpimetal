@@ -156,7 +156,7 @@ BOOTLOADER = bootloaders/linked
 | `bootloaders/elf-symbol` | Loads kernel as ELF, resolves symbols at runtime | Programs using modules, dynamic features |
 | `bootloaders/elf-uart` | (WIP) Loads ELF via UART | Development without SD card reflashing |
 
-See [bootloaders/](bootloaders/) for detailed documentation on each.
+See [bootloaders](bootloaders/README.md) for detailed documentation on each.
 
 ## Terminal Modes
 
@@ -170,7 +170,7 @@ Communication is multiplexed, allowing multiple channels over a single UART conn
 
 To switch between terminal sessions, use the **Terminal Keeper** extension in the VS Code sidebar.
 
-For protocol details and implementation guide, see [docs/multiplexing.md](docs/multiplexing.md).
+For protocol details and implementation guide, see [multiplexing.md](docs/multiplexing.md).
 
 ## Architecture Overview
 
@@ -195,11 +195,12 @@ The Raspberry Pi boot sequence involves multiple stages:
 ### Memory Layout
 
 ```
-0x00000000 - 0x00080000  : Reserved (GPU, interrupt vectors)
+0x00000000 - 0x00010000  : Mapped as invalid for protection
+0x00010000 - 0x00080000  : Stack
 0x00080000 - 0x????????  : Kernel image (bootloader + kernel + modules)
 0x???????? - 0x3E000000  : Available RAM for heap/dynamic allocation
-0x3E000000 - 0x40000000  : Reserved (GPU memory, MMIO)
-0x40000000+              : Peripheral registers (MMIO)
+0x3E000000 - 0x40000000  : GPU peripherals
+0x40000000+              : Local peripherals
 ```
 
 ## Documentation

@@ -308,5 +308,5 @@ build/
 ## Further Reading
 
 - [Build System](../docs/build-system.md) — How modules are compiled and linked
-- [Bootloaders](../bootloaders/) — Different module loading strategies
+- [Bootloaders](../bootloaders/README.md) — Different module loading strategies
 - [ELF Loader Source](loader/loader.c) — Implementation details

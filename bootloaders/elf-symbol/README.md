@@ -23,28 +23,7 @@ Unlike the `linked` bootloader which statically links everything at build time, 
 
 ### boot.S
 
-Similar to `linked/boot.S` but with additional features:
-
-1. **Standard boot sequence**: Core detection, EL2→EL1 transition, stack setup
-2. **Built-in `memset`**: For BSS/TLS initialization
-3. **`_cpu_init_hook`**: Initializes MMU and TLS before C code runs
-
-```asm
-.globl _cpu_init_hook
-_cpu_init_hook:
-    // Setup plain memory map
-    bl mmu_init
-    // Set tbss to zero
-    ldr x0, .LC0
-    mov w1, #0
-    ldr x2, .LC1
-    sub x2, x2, x0
-    bl memset
-    // Set thread pointer
-    ldr x0, .LC2
-    msr tpidr_el1, x0
-    ret
-```
+Similar to `linked/boot.S`
 
 ### boot.c
 
@@ -250,13 +229,13 @@ Symbol information for dynamically loaded modules can be tricky. The loader can 
 loader_print_tls_layout(tls_schema);
 ```
 
-For GDB, loaded module addresses need to be added manually using `add-symbol-file`.
+For GDB, loaded module addresses are added automatically to the memory layout by the `gdb-commands.py` plugin.
 
 ## Limitations
 
 - **Larger binary**: Bootloader includes libbfd and loader code
 - **Slower boot**: ELF parsing and relocation takes time
-- **Memory overhead**: Each loaded module allocates sections dynamically
+- **Memory overhead**: Each loaded module requires extra space for its symbol tables and other metadata
 - **Complexity**: More moving parts than static linking
 
 For simpler use cases, consider [linked](../linked/) instead.
