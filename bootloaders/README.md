@@ -6,9 +6,9 @@ This directory contains different bootloaders for RPiMetal. Each bootloader init
 
 | Bootloader | Description | Use Case |
 |------------|-------------|----------|
-| [linked](linked/) | Static linking | Simple programs, no dynamic loading |
-| [elf-symbol](elf-symbol/) | Dynamic ELF loading | Programs using modules, dynamic features, TLS |
-| [elf-uart](elf-uart/) | Load ELF via UART | (WIP) Development without SD card reflashing |
+| [linked](linked/README.md) | Static linking | Simple programs, no dynamic loading |
+| [elf-symbol](elf-symbol/README.md) | Dynamic ELF loading | Programs using modules, dynamic features, TLS |
+| [elf-uart](elf-uart/README.md) | Load ELF via UART | (WIP) Development without SD card reflashing |
 
 ## Choosing a Bootloader
 
@@ -69,4 +69,4 @@ void _start(struct boot_info *info, union boot_userdata userdata);
 
 ## Creating a Custom Bootloader
 
-See [docs/build-system.md](../docs/build-system.md#adding-a-new-bootloader) for instructions on creating your own bootloader.
+See [Build system](../docs/build-system.md#adding-a-new-bootloader) for instructions on creating your own bootloader.

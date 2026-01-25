@@ -131,4 +131,4 @@ int kernel_start(struct boot_info *info, union boot_userdata userdata) {
 - **Fixed configuration**: Cannot change modules without rebuilding
 - **No dynamic symbols**: Cannot look up symbols by name at runtime
 
-For dynamic loading capabilities, use [elf-symbol](../elf-symbol/) instead.
+For dynamic loading capabilities, use [elf-symbol](../elf-symbol/README.md) instead.

@@ -145,5 +145,5 @@ You should see "Hello, RPi Metal!" printed.
 
 ## Next Steps
 
-- Try the [display](../display/) example to see graphics output
-- Try the [0A_misc](../0A_misc/) example for a more complex program with input handling
+- Try the [display](../display/README.md) example to see graphics output
+- Try the [0A_misc](../0A_misc/README.md) example for a more complex program with input handling
