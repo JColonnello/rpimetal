@@ -8,9 +8,9 @@ Start with the simplest example and progress to more complex ones:
 
 | # | Example | Description | Bootloader | Key Concepts |
 |---|---------|-------------|------------|--------------|
-| 1 | [no-libc-uart](no-libc-uart/) | Minimal "Hello World" | `linked` | Basic UART output, simple-uart driver |
-| 2 | [display](display/) | Show an image on screen | `linked` | Framebuffer, mailbox, graphics |
-| 3 | [0A_misc](0A_misc/) | Interactive echo with timing | `linked` | Full libc, timer, stdin/stdout, interrupts |
+| 1 | [no-libc-uart](no-libc-uart/README.md) | Minimal "Hello World" | `linked` | Basic UART output, simple-uart driver |
+| 2 | [display](display/README.md) | Show an image on screen | `linked` | Framebuffer, mailbox, graphics |
+| 3 | [0A_misc](0A_misc/README.md) | Interactive echo with timing | `linked` | Full libc, timer, stdin/stdout, interrupts |
 
 ## Quick Start
 
@@ -156,4 +156,4 @@ For examples with graphics (`display`), connect a VNC client to `localhost:5901`
 
 - [Build System](../docs/build-system.md) — How examples are built
 - [Modules](../modules/README.md) — Available modules and their APIs
-- [Bootloaders](../bootloaders/) — Different bootloader options
+- [Bootloaders](../bootloaders/README.md) — Different bootloader options

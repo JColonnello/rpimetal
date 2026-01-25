@@ -238,4 +238,4 @@ For GDB, loaded module addresses are added automatically to the memory layout by
 - **Memory overhead**: Each loaded module requires extra space for its symbol tables and other metadata
 - **Complexity**: More moving parts than static linking
 
-For simpler use cases, consider [linked](../linked/) instead.
+For simpler use cases, consider [linked](../linked/README.md) instead.

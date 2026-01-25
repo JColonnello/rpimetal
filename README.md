@@ -22,7 +22,6 @@ An out-of-the-box development environment for baremetal programming on a physica
   * Static linking (simplest approach)
   * Dynamic ELF loading with runtime symbol resolution
   * Thread-local storage (TLS) support
-  * [Bootloader documentation](bootloaders/README.md)
 
 * **Modular kernel components**:
   * Interrupt handling (IRQ)
@@ -33,16 +32,12 @@ An out-of-the-box development environment for baremetal programming on a physica
   * Mailbox interface for GPU communication
   * ARM generic timer and BCM2837 local timer
   * ELF loader with libbfd-based symbol resolution
-  * [Module documentation](modules/README.md)
 
 * **Serial multiplexing protocol** for multi-channel communication over UART
-  * [Multiplexing documentation](docs/multiplexing.md)
 
 * **Extensible GNU Make build system**
-  * [Build system documentation](docs/build-system.md)
 
 * **Tutorial examples** with progressive complexity
-  * [Example tutorials](examples/README.md)
 
 ## Installation
 
@@ -156,7 +151,7 @@ BOOTLOADER = bootloaders/linked
 | `bootloaders/elf-symbol` | Loads kernel as ELF, resolves symbols at runtime | Programs using modules, dynamic features |
 | `bootloaders/elf-uart` | (WIP) Loads ELF via UART | Development without SD card reflashing |
 
-See [bootloaders](bootloaders/README.md) for detailed documentation on each.
+See [Bootloaders](2.-Bootloaders.md) for detailed documentation on each.
 
 ## Terminal Modes
 
@@ -170,7 +165,7 @@ Communication is multiplexed, allowing multiple channels over a single UART conn
 
 To switch between terminal sessions, use the **Terminal Keeper** extension in the VS Code sidebar.
 
-For protocol details and implementation guide, see [multiplexing.md](docs/multiplexing.md).
+For protocol details and implementation guide, see [Multiplexing](docs/multiplexing.md).
 
 ## Architecture Overview
 

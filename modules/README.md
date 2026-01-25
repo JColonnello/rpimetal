@@ -62,7 +62,7 @@ System-level utilities and services.
 
 | Module | Description |
 |--------|-------------|
-| `sys/mux` | Serial multiplexing. Enables multiple channels over single UART. See [multiplexing.md](../docs/multiplexing.md). |
+| `sys/mux` | Serial multiplexing. Enables multiple channels over single UART. See [Multiplexing](../docs/multiplexing.md). |
 | `sys/printf` | Lightweight printf implementation. Provides `init_printf()` and `printf()` functions. |
 
 ### fs/ — Filesystems

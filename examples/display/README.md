@@ -209,5 +209,5 @@ The "pitch" is the number of bytes per screen row. It may be larger than `width 
 
 ## Next Steps
 
-- Combine with [no-libc-uart](../no-libc-uart/) for text output alongside graphics
-- Try [0A_misc](../0A_misc/) for interactive input/output
+- Combine with [no-libc-uart](../no-libc-uart/README.md) for text output alongside graphics
+- Try [0A_misc](../0A_misc/README.md) for interactive input/output
