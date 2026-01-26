@@ -21,13 +21,15 @@ typedef struct section_data
 	size_t size;
 	bool tls;
 	asection *bfd_section;
+	struct assembly_data *assembly;
+
 	struct section_data *next;
 } section_data;
 
 typedef struct symbol_data
 {
 	const char *name;
-	void *address;
+	void *value;
 	enum symbol_bind type;
 	struct section_data *section;
 } symbol_data;
@@ -39,6 +41,7 @@ typedef struct assembly_data
 	uint16_t symbol_count;
 	struct symbol_data *symbols;
 	bfd *bfd_file;
+	bool loaded;
 
 	struct assembly_data *next;
 } assembly_data;

@@ -2,6 +2,8 @@
 #include "complex-loader.h"
 #include <bfd.h>
 #include <sglib.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 #pragma region Type definitions
 
@@ -47,3 +49,17 @@ SGLIB_DEFINE_LIST_PROTOTYPES(tructor_data, SGLIB_NUMERIC_COMPARATOR, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(tructor_data, SGLIB_NUMERIC_COMPARATOR, next)
 SGLIB_DEFINE_LIST_PROTOTYPES(tls_info, SGLIB_NUMERIC_COMPARATOR, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(tls_info, SGLIB_NUMERIC_COMPARATOR, next)
+
+static void *section_malloc(size_t size)
+{
+	return malloc(size);
+}
+static void section_free(void *ptr)
+{
+	free(ptr);
+}
+
+static void *section_realloc(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}

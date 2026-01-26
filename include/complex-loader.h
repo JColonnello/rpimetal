@@ -33,7 +33,7 @@ enum loader_error
 struct link_set *loader_create_linkset();
 void loader_free_linkset(struct link_set *linkset);
 void loader_add_starting_symbols(struct link_set *linkset, size_t n, const struct start_symbol symbols[n]);
-enum loader_error loader_load_file(struct link_set *linkset, FILE *file, const char *filename);
+enum loader_error loader_read_file(struct link_set *linkset, FILE *file, const char *filename);
 enum loader_error loader_finish_link(struct link_set *linkset);
 void *loader_search_symbol(struct link_set *linkset, const char *name);
 inline void *local_tls_offset(void *var)
