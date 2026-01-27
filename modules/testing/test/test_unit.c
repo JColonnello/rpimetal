@@ -1,6 +1,8 @@
-extern int callback(int);
-extern __thread int tls_int;
-__thread int module_data = 5, module_arr[4];
+#include <attrib.h>
+
+extern weak int callback(int);
+extern thread int tls_int;
+thread int module_data = 5, module_arr[4];
 
 static int test_data_01 = 10;
 static int test_data_02[] = {1, 2, 3};

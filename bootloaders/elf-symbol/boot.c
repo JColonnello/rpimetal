@@ -1,5 +1,5 @@
 #include "boot.h"
-#include "loader.h"
+#include "complex-loader.h"
 #include <arm/irq.h>
 #include <attrib.h>
 #include <boot/custom.h>
@@ -9,6 +9,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/unistd.h>
+
+#define CONCAT(p1, p2) p1##p2
+#define EVALUATOR(p1, p2) CONCAT(p1, p2)
+#define _BINARY_SYMBOL_PREFIX(SYMBOL) CONCAT(_binary_build_, SYMBOL)
+#define _BINARY_START(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_start)
+#define _BINARY_END(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_end)
+#define FILE_FROM_SYMBOL_FUNC_CALL(NAME) _##NAME##_get_file()
+#define FILE_FROM_SYMBOL_FUNC_DECL(NAME) \
+	extern char _BINARY_START(NAME)[], _BINARY_END(NAME)[]; \
+	FILE *_##NAME##_get_file() \
+	{ \
+		return fmemopen(_BINARY_START(NAME), (size_t)(_BINARY_END(NAME) - _BINARY_START(NAME)), "rb"); \
+	}
 
 FILE_FROM_SYMBOL_FUNC_DECL(modules_testing_test);
 FILE_FROM_SYMBOL_FUNC_DECL(kernel);
@@ -41,22 +54,26 @@ void noreturn kernel_jump()
 
 int main(void)
 {
-	symbol_data symbols[] = {
+	struct start_symbol symbols[] = {
 		{.name = "__stack", .address = (void *)0x80000},
 		{.name = "__bss_start__", .address = NULL},
 		{.name = "__bss_end__", .address = NULL},
 		{.name = "_fini", .address = fini},
 	};
 
+	struct linkset *linkset = loader_create_linkset();
 	void *mem_end = sbrk(0);
-	loader_init();
-	loader_add_starting_symbols(sizeof(symbols) / sizeof(*symbols), symbols);
-	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(libc_libgcc), "build/modules/libc/libgcc.ko");
-	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(libc_libc), "build/modules/libc/libc.ko");
-	loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(kernel), "build/kernel.ko");
-	// loader_load_file(FILE_FROM_SYMBOL_FUNC_CALL(modules_testing_test), "build/modules/testing/test.ko");
-	loader_print_tls_layout(tls_schema);
-	tcb = loader_create_tcb();
+	loader_add_starting_symbols(linkset, sizeof(symbols) / sizeof(*symbols), symbols);
+
+	FILE *kernel_file = FILE_FROM_SYMBOL_FUNC_CALL(kernel);
+	FILE *modules_testing_test_file = FILE_FROM_SYMBOL_FUNC_CALL(modules_testing_test);
+
+	loader_read_file(linkset, kernel_file, "build/kernel.ko");
+	loader_read_file(linkset, modules_testing_test_file, "build/modules/testing/test.ko");
+	loader_finish_link(linkset);
+
+	loader_print_tls_layout(linkset);
+	tcb = loader_create_tcb(linkset);
 	// once everything is patched, we should be able to run test_function
 	// which should call our callback!
 
@@ -66,11 +83,11 @@ int main(void)
 		.memory_end = (void *)0x3E000000,
 	};
 	boot_data = (struct boot_customdata){
-		.test_function = loader_search_symbol("test_function_02"),
-		.module_data = loader_tls_ptr(tcb, (ssize_t)loader_search_symbol("module_data")),
+		.test_function = loader_search_symbol(linkset, "test_function_02"),
+		.module_data = loader_tls_ptr(tcb, (ssize_t)loader_search_symbol(linkset, "module_data")),
 	};
 	boot_userdata.custom = &boot_data;
-	kernel_start = loader_search_symbol("_start");
+	kernel_start = loader_search_symbol(linkset, "_start");
 
 	fputs("Jumping to kernel...\n", stdout);
 

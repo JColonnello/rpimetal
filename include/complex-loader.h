@@ -21,7 +21,7 @@ struct start_symbol
 	enum symbol_bind type;
 };
 
-struct link_set;
+struct linkset;
 
 enum loader_error
 {
@@ -30,20 +30,20 @@ enum loader_error
 	LOADER_ERROR_OUT_OF_MEMORY,
 };
 
-struct link_set *loader_create_linkset();
-void loader_free_linkset(struct link_set *linkset);
-void loader_add_starting_symbols(struct link_set *linkset, size_t n, const struct start_symbol symbols[n]);
-enum loader_error loader_read_file(struct link_set *linkset, FILE *file, const char *filename);
-enum loader_error loader_finish_link(struct link_set *linkset);
-void *loader_search_symbol(struct link_set *linkset, const char *name);
+struct linkset *loader_create_linkset();
+void loader_free_linkset(struct linkset *linkset);
+void loader_add_starting_symbols(struct linkset *linkset, size_t n, const struct start_symbol symbols[n]);
+enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const char *filename);
+enum loader_error loader_finish_link(struct linkset *linkset);
+void *loader_search_symbol(struct linkset *linkset, const char *name);
 inline void *local_tls_offset(void *var)
 {
 	return (void *)(var - __builtin_thread_pointer());
 }
-struct tls_data *loader_create_tcb(struct link_set *linkset);
+struct tls_data *loader_create_tcb(struct linkset *linkset);
 inline void *loader_tls_ptr(const struct tls_data *tcb, ssize_t offset)
 {
 	return (void *)tcb + offset;
 }
 struct tls_data *loader_switch_tcb(struct tls_data *tcb);
-void loader_print_tls_layout(const struct link_set *linkset);
+void loader_print_tls_layout(const struct linkset *linkset);

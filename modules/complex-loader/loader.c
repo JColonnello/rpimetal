@@ -17,11 +17,17 @@ typedef struct __attribute__((packed)) tls_data
 } tls_data;
 
 _Static_assert(sizeof(tls_data) == 16, "TLS control block is not 16 bytes long");
+struct tcb_instance
+{
+	void *address;
+	struct tcb_instance *next;
+};
 
-struct link_set
+struct linkset
 {
 	struct tls_data *tls_template;
 	struct tls_info *tls_schema;
+	struct tcb_instance *tcbs;
 	struct assembly_data *loaded_assemblies;
 	struct tructor_data *constructors;
 	struct tructor_data *destructors;
