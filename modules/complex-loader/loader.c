@@ -1,9 +1,13 @@
+#define LOADER_INLINE_DEFINITIONS
 #include "_loader.h"
+#include "attrib.h"
 #include "complex-loader.h"
 #include "relocation.h"
 #include <bfd.h>
 #include <sglib.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -17,7 +21,7 @@ typedef struct __attribute__((packed)) tls_data
 	uint64_t data[];
 } tls_data;
 
-_Static_assert(sizeof(tls_data) == 16, "TLS control block is not 16 bytes long");
+static_assert(sizeof(tls_data) == 16, "TLS control block is not 16 bytes long");
 
 typedef struct tcb_instance
 {
@@ -33,6 +37,7 @@ struct linkset
 	struct assembly_data *loaded_assemblies;
 	struct tructor_data *constructors;
 	struct tructor_data *destructors;
+	uint16_t undefined_offset;
 };
 
 static section_data *absolute_section = &(section_data){
@@ -44,30 +49,43 @@ static section_data *absolute_section = &(section_data){
 	.bfd_section = bfd_abs_section_ptr,
 	.assembly = NULL,
 };
+static section_data *undefined_section = &(section_data){
+	.name = "<undefined>",
+	.address = NULL, //(void *)(0xDEADBEAFL << 32),
+	.size = 0,
+	.tls = false,
+	.next = NULL,
+	.bfd_section = bfd_und_section_ptr,
+	.assembly = NULL,
+};
 
 #define NAME_COMP(x, y) \
 	((x)->name == NULL || (y)->name == NULL ? SGLIB_SAFE_NUMERIC_COMPARATOR((x)->name, (y)->name) \
 											: strcmp((x)->name, (y)->name))
 #define COMP_DIRECT(comp, x, y) comp(&x, &y)
 #define NAME_COMP_DIRECT(x, y) COMP_DIRECT(NAME_COMP, x, y)
+#define PRIO_COMP(x, y) SGLIB_NUMERIC_COMPARATOR((x)->priority, (y)->priority)
+#define OFFSET_COMP(x, y) SGLIB_NUMERIC_COMPARATOR((y)->offset, (x)->offset)
 
 SGLIB_DEFINE_LIST_PROTOTYPES(assembly_data, NAME_COMP, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(assembly_data, NAME_COMP, next)
 SGLIB_DEFINE_LIST_PROTOTYPES(section_data, NAME_COMP, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(section_data, NAME_COMP, next)
-SGLIB_DEFINE_LIST_PROTOTYPES(tructor_data, SGLIB_NUMERIC_COMPARATOR, next)
-SGLIB_DEFINE_LIST_FUNCTIONS(tructor_data, SGLIB_NUMERIC_COMPARATOR, next)
-SGLIB_DEFINE_LIST_PROTOTYPES(tls_info, SGLIB_NUMERIC_COMPARATOR, next)
-SGLIB_DEFINE_LIST_FUNCTIONS(tls_info, SGLIB_NUMERIC_COMPARATOR, next)
+SGLIB_DEFINE_LIST_PROTOTYPES(tructor_data, PRIO_COMP, next)
+SGLIB_DEFINE_LIST_FUNCTIONS(tructor_data, PRIO_COMP, next)
+SGLIB_DEFINE_LIST_PROTOTYPES(tls_info, OFFSET_COMP, next)
+SGLIB_DEFINE_LIST_FUNCTIONS(tls_info, OFFSET_COMP, next)
 SGLIB_DEFINE_LIST_PROTOTYPES(tcb_instance, SGLIB_NUMERIC_COMPARATOR, next)
 SGLIB_DEFINE_LIST_FUNCTIONS(tcb_instance, SGLIB_NUMERIC_COMPARATOR, next)
+SGLIB_DEFINE_ARRAY_SORTING_PROTOTYPES(symbol_data, NAME_COMP_DIRECT)
+SGLIB_DEFINE_ARRAY_SORTING_FUNCTIONS(symbol_data, NAME_COMP_DIRECT)
 
 static void *section_malloc(size_t size, size_t alignment)
 {
 	if (alignment < sizeof(void *))
 		alignment = sizeof(void *);
-	void *ptr = NULL;
-	if (posix_memalign(&ptr, alignment, size) != 0)
+	void *ptr = aligned_alloc(alignment, size);
+	if (ptr == NULL)
 		return NULL;
 	return ptr;
 }
@@ -84,12 +102,15 @@ __attribute__((unused)) static void *section_realloc(void *ptr, size_t size)
 
 #pragma endregion
 
+static constructor void loader_init()
+{
+	bfd_init();
+}
+
 #pragma region Linkset Management
 
 struct linkset *loader_create_linkset(void)
 {
-	bfd_init();
-
 	struct linkset *linkset = calloc(1, sizeof(struct linkset));
 	if (linkset == NULL)
 		return NULL;
@@ -208,13 +229,13 @@ void loader_add_starting_symbols(struct linkset *linkset, size_t n, const struct
 	{
 		match->symbols[count + i] = (symbol_data){
 			.name = strdup(symbols[i].name),
-			.value = symbols[i].address,
+			.value = (uint64_t)symbols[i].address,
 			.type = symbols[i].type,
 			.section = absolute_section,
 		};
 	}
 	match->symbol_count = count + n;
-	SGLIB_ARRAY_SINGLE_QUICK_SORT(symbol_data, match->symbols, match->symbol_count, NAME_COMP_DIRECT);
+	sglib_symbol_data_array_quick_sort(match->symbols, match->symbol_count);
 }
 
 static const symbol_data *search_symbol(struct linkset *linkset, const char *name)
@@ -239,7 +260,7 @@ static const symbol_data *search_symbol(struct linkset *linkset, const char *nam
 			const symbol_data *sym = &assembly->symbols[index];
 			if (sym->type == SYMBOL_BIND_GLOBAL)
 				return sym;
-			if (sym->type == SYMBOL_BIND_WEAK && weak_match == NULL)
+			if (sym->type == SYMBOL_BIND_WEAK)
 				weak_match = sym;
 		}
 	}
@@ -252,7 +273,7 @@ void *loader_search_symbol(struct linkset *linkset, const char *name)
 {
 	const symbol_data *sym = search_symbol(linkset, name);
 	if (sym != NULL)
-		return sym->value;
+		return sym->value + sym->section->address;
 	return NULL;
 }
 
@@ -281,7 +302,7 @@ static ssize_t register_tls_segment(struct linkset *linkset, size_t size, size_t
 			.size = extra,
 			.section = NULL,
 		};
-		SGLIB_LIST_ADD(tls_info, linkset->tls_schema, padding, next);
+		sglib_tls_info_add(&linkset->tls_schema, padding);
 		offset += extra;
 	}
 
@@ -294,7 +315,7 @@ static ssize_t register_tls_segment(struct linkset *linkset, size_t size, size_t
 		.size = size,
 		.section = section,
 	};
-	SGLIB_LIST_ADD(tls_info, linkset->tls_schema, entry, next);
+	sglib_tls_info_add(&linkset->tls_schema, entry);
 
 	void *new_template = realloc(linkset->tls_template, offset + size);
 	if (new_template == NULL)
@@ -320,7 +341,7 @@ struct tls_data *loader_create_tcb(struct linkset *linkset)
 	if (instance != NULL)
 	{
 		instance->address = tcb;
-		SGLIB_LIST_ADD(tcb_instance, linkset->tcbs, instance, next);
+		sglib_tcb_instance_add(&linkset->tcbs, instance);
 	}
 
 	return tcb;
@@ -337,27 +358,30 @@ struct tls_data *loader_switch_tcb(struct tls_data *tcb)
 
 void loader_print_tls_layout(const struct linkset *linkset)
 {
-	if (linkset == NULL)
-		return;
-
 	printf("TLS Schema:\n");
-	const section_data *last_section = NULL;
+	const assembly_data *last = NULL;
 	SGLIB_LIST_MAP_ON_ELEMENTS(const tls_info, linkset->tls_schema, segment, next, {
 		if (segment->in_use)
 		{
-			if (segment->section != NULL && last_section != segment->section)
+			if (last != segment->section->assembly)
 			{
-				last_section = segment->section;
-				const char *asm_name = (last_section->assembly != NULL && last_section->assembly->name != NULL)
-										   ? last_section->assembly->name
-										   : "LOCAL";
-				printf("Assembly: %s, Section: %s\n", asm_name, last_section->name);
+				last = segment->section->assembly;
+				printf("Assembly: %s\n", last->name != NULL ? last->name : "LOCAL");
 			}
-			printf("\tOffset = %u, Size = %u\n", segment->offset, segment->size);
+			printf("\tOffset = %u, Size = %u, Section: %s\n", segment->offset, segment->size, segment->section->name);
 		}
 		else
-			printf("\tAlignment padding = %u\n", segment->size);
+			printf("\tAlignment = %u\n", segment->size);
 	});
+}
+
+void *local_tls_offset(void *var)
+{
+	return (void *)(var - __builtin_thread_pointer());
+}
+void *loader_tls_ptr(const struct tls_data *tcb, ssize_t offset)
+{
+	return (void *)tcb + offset;
 }
 
 #pragma endregion
@@ -479,16 +503,11 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 			}
 		}
 
+		void *target = sec->tls ? ((char *)linkset->tls_template + (intptr_t)sec->address) : sec->address;
 		if (flags & SEC_LOAD)
-		{
-			void *target = sec->tls ? ((char *)linkset->tls_template + (intptr_t)sec->address) : sec->address;
 			bfd_get_section_contents(abfd, section, target, 0, section->size);
-		}
 		else
-		{
-			void *target = sec->tls ? ((char *)linkset->tls_template + (intptr_t)sec->address) : sec->address;
 			memset(target, 0, section->size);
-		}
 
 		// Check for constructor/destructor sections
 		uint16_t priority;
@@ -499,7 +518,7 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 			{
 				ctor->priority = priority;
 				ctor->section = sec;
-				SGLIB_LIST_ADD(tructor_data, linkset->constructors, ctor, next);
+				sglib_tructor_data_add(&linkset->constructors, ctor);
 			}
 		}
 		else if (is_destructor_section(section->name, &priority))
@@ -509,7 +528,7 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 			{
 				dtor->priority = priority;
 				dtor->section = sec;
-				SGLIB_LIST_ADD(tructor_data, linkset->destructors, dtor, next);
+				sglib_tructor_data_add(&linkset->destructors, dtor);
 			}
 		}
 
@@ -556,30 +575,24 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 		{
 			section_data key = {.name = (char *)sym->section->name};
 			sec_match = sglib_section_data_find_member(loaded_sections, &key);
-		}
-
-		void *sym_value;
-		if (sec_match != NULL)
-		{
-			if (sec_match->tls)
-				sym_value = (void *)((intptr_t)sec_match->address + sym->value);
-			else
-				sym_value = (char *)sec_match->address + sym->value;
+			assert(sec_match != NULL);
 		}
 		else
-			sym_value = (void *)sym->value;
+		{
+			sec_match = absolute_section;
+		}
 
 		symbols[export_count++] = (symbol_data){
 			.name = strdup(sym->name),
-			.value = sym_value,
+			.value = sym->value,
 			.type = bind,
-			.section = sec_match != NULL ? sec_match : absolute_section,
+			.section = sec_match,
 		};
 	}
 
 	free(bfd_symbols);
 	symbols = realloc(symbols, sizeof(symbol_data) * export_count);
-	SGLIB_ARRAY_SINGLE_QUICK_SORT(symbol_data, symbols, export_count, NAME_COMP_DIRECT);
+	sglib_symbol_data_array_quick_sort(symbols, export_count);
 
 	assembly->sections = loaded_sections;
 	assembly->symbol_count = export_count;
@@ -640,66 +653,60 @@ enum loader_error loader_finish_link(struct linkset *linkset)
 
 			for (long i = 0; i < relcount; i++)
 			{
-				arelent *reloc = relocs[i];
-				asymbol *sym = *reloc->sym_ptr_ptr;
+				arelent *b_reloc = relocs[i];
+				asymbol *b_sym = *b_reloc->sym_ptr_ptr;
 
-				// Find the target symbol value
-				void *target_value = NULL;
-				section_data *target_section = absolute_section;
+				uint64_t target_value = b_sym->value;
+				section_data *target_section = NULL;
+				uint64_t addend = b_reloc->addend;
 
-				if (bfd_is_und_section(sym->section))
+				if (!(b_sym->flags & BSF_LOCAL))
 				{
 					// Look up in linkset
-					const symbol_data *found = search_symbol(linkset, sym->name);
+					const symbol_data *found = search_symbol(linkset, b_sym->name);
 					if (found != NULL)
 					{
 						target_value = found->value;
 						target_section = found->section;
 					}
-					else if (sym->flags & BSF_WEAK)
+					else if (b_sym->flags & BSF_WEAK)
 						continue;
 					else
 					{
-						fprintf(stderr, "Undefined symbol: %s\n", sym->name);
-						free(relocs);
-						free(bfd_symbols);
-						return LOADER_ERROR_INVALID_FILE;
+						target_section = undefined_section;
+						target_value = linkset->undefined_offset;
+						addend = 0;
+						linkset->undefined_offset += 8;
+						fprintf(stderr, "Undefined symbol `%s` pointed to 0x%04lx\n", b_sym->name, target_value);
 					}
-				}
-				else if (bfd_is_abs_section(sym->section))
-				{
-					target_value = (void *)sym->value;
-					target_section = absolute_section;
 				}
 				else
 				{
 					// Local section symbol
-					section_data key = {.name = (char *)sym->section->name};
-					section_data *local_sec = sglib_section_data_find_member(assembly->sections, &key);
-					if (local_sec != NULL)
-					{
-						if (local_sec->tls)
-							target_value = (void *)((intptr_t)local_sec->address + sym->value);
-						else
-							target_value = (char *)local_sec->address + sym->value;
-						target_section = local_sec;
-					}
+					if (bfd_is_abs_section(b_sym->section))
+						target_section = absolute_section;
 					else
 					{
-						target_value = (void *)sym->value;
+						section_data key = {.name = (char *)b_sym->section->name};
+						section_data *local_sec = sglib_section_data_find_member(assembly->sections, &key);
+						assert(local_sec != NULL);
+						target_section = local_sec;
 					}
 				}
 
-				bfd_reloc_status_type status = aarch64_relocate(
-					reloc->howto->type, abfd, sec, target_section, reloc->address, (bfd_vma)target_value, reloc->addend
-				);
+				uintptr_t offset = sec->tls ? (uintptr_t)linkset->tls_template + b_reloc->address : b_reloc->address;
 
-				if (status != bfd_reloc_ok && status != bfd_reloc_undefined)
+				bfd_reloc_status_type status =
+					aarch64_relocate(b_reloc->howto->type, abfd, sec, target_section, offset, target_value, addend);
+
+				if (status == bfd_reloc_dangerous)
+					printf("Dangerous relocation\n");
+				else if (status != bfd_reloc_ok && status != bfd_reloc_undefined)
 				{
-					fprintf(stderr, "Relocation failed for symbol %s: %d\n", sym->name, status);
+					printf("Failed relocation for symbol `%s`. Error %d\n", b_sym->name, status);
 					free(relocs);
 					free(bfd_symbols);
-					return LOADER_ERROR_INVALID_FILE;
+					return LOADER_ERROR_RELOCATION_FAILED;
 				}
 			}
 

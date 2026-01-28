@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 #define PACKAGE "elfloader-module"
 #define PACKAGE_VERSION "0.1"
 
@@ -29,7 +30,7 @@ typedef struct section_data
 typedef struct symbol_data
 {
 	const char *name;
-	void *value;
+	uint64_t value;
 	enum symbol_bind type;
 	struct section_data *section;
 } symbol_data;
