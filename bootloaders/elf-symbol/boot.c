@@ -35,6 +35,7 @@ static struct boot_info boot_info;
 static union boot_userdata boot_userdata;
 static start_function_type kernel_start;
 static struct tls_data *tcb;
+struct linkset *linkset;
 
 void noreturn kernel_jump()
 {
@@ -61,7 +62,7 @@ int main(void)
 		{.name = "_fini", .address = fini},
 	};
 
-	struct linkset *linkset = loader_create_linkset();
+	linkset = loader_create_linkset();
 	void *mem_end = sbrk(0);
 	loader_add_starting_symbols(linkset, sizeof(symbols) / sizeof(*symbols), symbols);
 
@@ -70,7 +71,11 @@ int main(void)
 
 	loader_read_file(linkset, kernel_file, "build/kernel.ko");
 	loader_read_file(linkset, modules_testing_test_file, "build/modules/testing/test.ko");
-	loader_finish_link(linkset);
+	if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
+	{
+		fputs("Linking failed!\n", stdout);
+		return -1;
+	}
 
 	loader_print_tls_layout(linkset);
 	tcb = loader_create_tcb(linkset);

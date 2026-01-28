@@ -8,7 +8,7 @@ class AddAssemblySymbols(gdb.Command):
 		super(AddAssemblySymbols, self).__init__("add-assembly-symbols", gdb.COMMAND_USER)
 
 	def invoke(self, arg, from_tty):
-		loaded_assemblies_sym = "loaded_assemblies"
+		loaded_assemblies_sym = "linkset->loaded_assemblies"
 
 		'''
 		# Save enabled breakpoint IDs
