@@ -1,8 +1,9 @@
 #!/bin/sh
 set -e
 
-S="$1"
-C="$2"
+prefix="$2"
+S="$1/$prefix.S"
+C="$1/$prefix.c"
 shift 2
 
 : > "$S"
@@ -19,8 +20,8 @@ done
 
 cat > "$C" <<'EOF'
 /* GENERATED - do not edit */
-#include <stddef.h>
-struct payload_entry { const char *path; size_t size; const void *ptr; };
+#include <payload.h>
+#include <attrib.h>
 EOF
 
 i=1
@@ -29,7 +30,7 @@ for f in "$@"; do
     i=$((i+1))
 done
 
-echo 'struct payload_entry payloads[] = {' >> "$C"
+echo "struct payload_entry ${prefix}[] = {" >> "$C"
 i=1
 for f in "$@"; do
     printf '  { "%s", 0, payload_f%d_start },\n' "$f" "$i" >> "$C"
@@ -37,13 +38,13 @@ for f in "$@"; do
 done
 
 echo '};' >> "$C"
-echo 'const size_t payload_count = sizeof(payloads)/sizeof(payloads[0]);' >> "$C"
+echo "const size_t ${prefix}_count = sizeof(${prefix})/sizeof(${prefix}[0]);" >> "$C"
 
 # Generate initializer to compute sizes (must be called before use)
-echo 'void payload_init(void) {' >> "$C"
+echo 'constructor static void payload_init(void) {' >> "$C"
 i=1
 for f in "$@"; do
-    printf '  payloads[%d].size = (size_t)(payload_f%d_end - payload_f%d_start);\n' "$((i-1))" "$i" "$i" >> "$C"
+    printf "  ${prefix}[%d].size = (size_t)(payload_f%d_end - payload_f%d_start);\n" "$((i-1))" "$i" "$i" >> "$C"
     i=$((i+1))
 done
 echo '}' >> "$C"

@@ -6,36 +6,18 @@
 #include <drivers/irq.h>
 #include <drivers/timer.h>
 #include <drivers/uart.h>
+#include <payload.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/unistd.h>
-
-#define CONCAT(p1, p2) p1##p2
-#define EVALUATOR(p1, p2) CONCAT(p1, p2)
-#define _BINARY_SYMBOL_PREFIX(SYMBOL) CONCAT(_binary_build_, SYMBOL)
-#define _BINARY_START(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_start)
-#define _BINARY_END(NAME) EVALUATOR(_BINARY_SYMBOL_PREFIX(NAME), _ko_end)
-#define FILE_FROM_SYMBOL_FUNC_CALL(NAME) _##NAME##_get_file()
-#define FILE_FROM_SYMBOL_FUNC_DECL(NAME) \
-	extern char _BINARY_START(NAME)[], _BINARY_END(NAME)[]; \
-	FILE *_##NAME##_get_file() \
-	{ \
-		return fmemopen(_BINARY_START(NAME), (size_t)(_BINARY_END(NAME) - _BINARY_START(NAME)), "rb"); \
-	}
 
 /* The payload generator creates a numbered table `payloads[]` in
 	build/payload.c which provides {path, size, ptr} entries for each
 	embedded file. We iterate it below and use `fmemopen` to obtain
 	a FILE* for the existing loader APIs. */
 
-struct payload_entry
-{
-	const char *path;
-	size_t size;
-	const void *ptr;
-};
-extern const struct payload_entry payloads[];
-extern const size_t payload_count;
+extern const struct payload_entry kernel_payload[];
+extern const size_t kernel_payload_count;
 
 void fini()
 {
@@ -77,13 +59,9 @@ int main(void)
 	void *mem_end = sbrk(0);
 	loader_add_starting_symbols(linkset, sizeof(symbols) / sizeof(*symbols), symbols);
 
-	/* initialize computed payload sizes */
-	extern void payload_init(void);
-	payload_init();
-
-	for (size_t i = 0; i < payload_count; ++i)
+	for (size_t i = 0; i < kernel_payload_count; ++i)
 	{
-		const struct payload_entry *e = &payloads[i];
+		const struct payload_entry *e = &kernel_payload[i];
 		FILE *f = fmemopen((void *)e->ptr, e->size, "rb");
 		if (!f)
 		{

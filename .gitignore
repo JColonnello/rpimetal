@@ -17,8 +17,8 @@
 # Precompiled Headers
 *.gch
 *.pch
-build/*.c
-build/*.S
+build/**/*.c
+build/**/*.S
 
 # Libraries
 *.lib
