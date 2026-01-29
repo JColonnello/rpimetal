@@ -23,8 +23,19 @@
 		return fmemopen(_BINARY_START(NAME), (size_t)(_BINARY_END(NAME) - _BINARY_START(NAME)), "rb"); \
 	}
 
-FILE_FROM_SYMBOL_FUNC_DECL(modules_testing_test);
-FILE_FROM_SYMBOL_FUNC_DECL(kernel);
+/* The payload generator creates a numbered table `payloads[]` in
+	build/payload.c which provides {path, size, ptr} entries for each
+	embedded file. We iterate it below and use `fmemopen` to obtain
+	a FILE* for the existing loader APIs. */
+
+struct payload_entry
+{
+	const char *path;
+	size_t size;
+	const void *ptr;
+};
+extern const struct payload_entry payloads[];
+extern const size_t payload_count;
 
 void fini()
 {
@@ -66,11 +77,21 @@ int main(void)
 	void *mem_end = sbrk(0);
 	loader_add_starting_symbols(linkset, sizeof(symbols) / sizeof(*symbols), symbols);
 
-	FILE *kernel_file = FILE_FROM_SYMBOL_FUNC_CALL(kernel);
-	FILE *modules_testing_test_file = FILE_FROM_SYMBOL_FUNC_CALL(modules_testing_test);
+	/* initialize computed payload sizes */
+	extern void payload_init(void);
+	payload_init();
 
-	loader_read_file(linkset, kernel_file, "build/kernel.ko");
-	loader_read_file(linkset, modules_testing_test_file, "build/modules/testing/test.ko");
+	for (size_t i = 0; i < payload_count; ++i)
+	{
+		const struct payload_entry *e = &payloads[i];
+		FILE *f = fmemopen((void *)e->ptr, e->size, "rb");
+		if (!f)
+		{
+			fprintf(stdout, "Failed to open embedded payload %s\n", e->path);
+			continue;
+		}
+		loader_read_file(linkset, f, e->path);
+	}
 	if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
 	{
 		fputs("Linking failed!\n", stdout);

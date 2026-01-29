@@ -17,6 +17,8 @@
 # Precompiled Headers
 *.gch
 *.pch
+build/*.c
+build/*.S
 
 # Libraries
 *.lib
@@ -38,7 +40,6 @@
 *.x86_64
 *.hex
 *.img
-build/multiplex
 
 # Debug files
 *.dSYM/
