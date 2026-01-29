@@ -18,6 +18,8 @@
 
 extern const struct payload_entry kernel_payload[];
 extern const size_t kernel_payload_count;
+extern const struct payload_entry extra_payload[];
+extern const size_t extra_payload_count;
 
 void fini()
 {
@@ -74,6 +76,23 @@ int main(void)
 	{
 		fputs("Linking failed!\n", stdout);
 		return -1;
+	}
+
+	for (size_t i = 0; i < extra_payload_count; ++i)
+	{
+		const struct payload_entry *e = &extra_payload[i];
+		FILE *f = fmemopen((void *)e->ptr, e->size, "rb");
+		if (!f)
+		{
+			fprintf(stdout, "Failed to open embedded payload %s\n", e->path);
+			continue;
+		}
+		loader_read_file(linkset, f, e->path);
+		if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
+		{
+			fputs("Linking failed!\n", stdout);
+			return -1;
+		}
 	}
 
 	loader_print_tls_layout(linkset);

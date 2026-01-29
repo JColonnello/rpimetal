@@ -11,10 +11,10 @@ shift 2
 printf ".section .rodata\n" >> "$S"
 i=1
 for f in "$@"; do
-    printf ".global payload_f%d_start, payload_f%d_end\n" "$i" "$i" >> "$S"
-    printf "payload_f%d_start:\n" "$i" >> "$S"
+    printf '.global %s_f%d_start, %s_f%d_end\n'  "$prefix" "$i" "$prefix" "$i" >> "$S"
+    printf '%s_f%d_start:\n' "$prefix" "$i" >> "$S"
     printf '.incbin "%s"\n' "$f" >> "$S"
-    printf "payload_f%d_end:\n" "$i" >> "$S"
+    printf '%s_f%d_end:\n' "$prefix" "$i" >> "$S"
     i=$((i+1))
 done
 
@@ -26,14 +26,14 @@ EOF
 
 i=1
 for f in "$@"; do
-    printf 'extern char payload_f%d_start[], payload_f%d_end[];\n' "$i" "$i" >> "$C"
+    printf 'extern char %s_f%d_start[], %s_f%d_end[];\n' "$prefix" "$i" "$prefix" "$i" >> "$C"
     i=$((i+1))
 done
 
 echo "struct payload_entry ${prefix}[] = {" >> "$C"
 i=1
 for f in "$@"; do
-    printf '  { "%s", 0, payload_f%d_start },\n' "$f" "$i" >> "$C"
+    printf '  { "%s", 0, %s_f%d_start },\n' "$f" "$prefix" "$i" >> "$C"
     i=$((i+1))
 done
 
@@ -44,7 +44,7 @@ echo "const size_t ${prefix}_count = sizeof(${prefix})/sizeof(${prefix}[0]);" >>
 echo 'constructor static void payload_init(void) {' >> "$C"
 i=1
 for f in "$@"; do
-    printf "  ${prefix}[%d].size = (size_t)(payload_f%d_end - payload_f%d_start);\n" "$((i-1))" "$i" "$i" >> "$C"
+    printf '  %s[%d].size = (size_t)(%s_f%d_end - %s_f%d_start);\n' "$prefix" "$((i-1))" "$prefix" "$i" "$prefix" "$i" >> "$C"
     i=$((i+1))
 done
 echo '}' >> "$C"
