@@ -21,6 +21,7 @@ typedef struct section_data
 	void *address;
 	size_t size;
 	bool tls;
+	bool allocated;
 	asection *bfd_section;
 	struct assembly_data *assembly;
 

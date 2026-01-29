@@ -37,6 +37,7 @@ struct linkset
 	struct assembly_data *loaded_assemblies;
 	struct tructor_data *constructors;
 	struct tructor_data *destructors;
+	void *constructor_got[6];
 	uint16_t undefined_offset;
 };
 
@@ -132,7 +133,7 @@ static void free_section_data(section_data *sections)
 	for (section_data *s = sglib_section_data_it_init(&it, sections); s != NULL; s = sglib_section_data_it_next(&it))
 	{
 		free((void *)s->name);
-		if (!s->tls && s->address != NULL)
+		if (s->allocated && s->address != NULL)
 			section_free(s->address);
 		free(s);
 	}
@@ -455,7 +456,6 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 
 	section_data *loaded_sections = NULL;
 
-	// First pass: allocate memory for sections
 	for (asection *section = abfd->sections; section != NULL; section = section->next)
 	{
 		flagword flags = section->flags;
@@ -475,39 +475,6 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 		sec->tls = !!(flags & SEC_THREAD_LOCAL);
 		sec->bfd_section = section;
 		sec->assembly = assembly;
-
-		if (flags & SEC_THREAD_LOCAL)
-		{
-			ssize_t offset = register_tls_segment(linkset, section->size, 1 << section->alignment_power, sec);
-			if (offset < 0)
-			{
-				free((void *)sec->name);
-				free(sec);
-				free_section_data(loaded_sections);
-				free_assembly_data(assembly);
-				return LOADER_ERROR_OUT_OF_MEMORY;
-			}
-			sec->address = (void *)(intptr_t)offset;
-		}
-		else
-		{
-			size_t alignment = 1 << section->alignment_power;
-			sec->address = section_malloc(section->size, alignment);
-			if (sec->address == NULL)
-			{
-				free((void *)sec->name);
-				free(sec);
-				free_section_data(loaded_sections);
-				free_assembly_data(assembly);
-				return LOADER_ERROR_OUT_OF_MEMORY;
-			}
-		}
-
-		void *target = sec->tls ? ((char *)linkset->tls_template + (intptr_t)sec->address) : sec->address;
-		if (flags & SEC_LOAD)
-			bfd_get_section_contents(abfd, section, target, 0, section->size);
-		else
-			memset(target, 0, section->size);
 
 		// Check for constructor/destructor sections
 		uint16_t priority;
@@ -607,10 +574,126 @@ enum loader_error loader_read_file(struct linkset *linkset, FILE *file, const ch
 
 #pragma region Linking
 
+static size_t build_tructor_array(tructor_data *list, void **out_buffer)
+{
+	size_t total_bytes = 0;
+	/* compute total size */
+	struct sglib_tructor_data_iterator _it;
+	for (tructor_data *t = sglib_tructor_data_it_init(&_it, list); t != NULL; t = sglib_tructor_data_it_next(&_it))
+		total_bytes += t->section != NULL ? t->section->size : 0;
+
+	void *buffer = NULL;
+	if (total_bytes > 0)
+	{
+		buffer = section_malloc(total_bytes, sizeof(void *));
+		if (buffer == NULL)
+		{
+			fprintf(stderr, "Failed to allocate tructor array\n");
+			return 0;
+		}
+
+		/* set sections addresses in list order into buffer */
+		size_t pos = 0;
+		for (tructor_data *t = sglib_tructor_data_it_init(&_it, list); t != NULL; t = sglib_tructor_data_it_next(&_it))
+		{
+			if (t->section == NULL)
+				continue;
+			t->section->address = buffer + pos;
+			pos += t->section->size;
+		}
+		// Mark only the first section as allocated to avoid double free
+		list->section->allocated = true;
+	}
+
+	*out_buffer = buffer;
+	return total_bytes;
+}
+
+static void create_tructor_array(struct linkset *linkset)
+{
+	if (linkset == NULL)
+		return;
+
+	// Sort constructor and destructor lists (sglib-generated sort function)
+	sglib_tructor_data_sort(&linkset->constructors);
+	sglib_tructor_data_sort(&linkset->destructors);
+	sglib_tructor_data_reverse(&linkset->destructors);
+
+	// Position tructor sections in memory
+	void *init_array, *fini_array;
+	size_t init_size = build_tructor_array(linkset->constructors, &init_array);
+	size_t fini_size = build_tructor_array(linkset->destructors, &fini_array);
+
+	// Set up GOT for constructors
+	linkset->constructor_got[0] = init_array;             // __init_array_start
+	linkset->constructor_got[1] = init_array + init_size; // __init_array_end
+	linkset->constructor_got[2] = fini_array;             // __fini_array_start
+	linkset->constructor_got[3] = fini_array + fini_size; // __fini_array_end
+	linkset->constructor_got[4] = NULL;                   // __preinit_array_start
+	linkset->constructor_got[5] = NULL;                   // __preinit_array_end
+
+	// Add start/end symbols
+	struct start_symbol syms[] = {
+		{.name = "__init_array_start", .address = &linkset->constructor_got[0], .type = SYMBOL_BIND_GLOBAL},
+		{.name = "__init_array_end", .address = &linkset->constructor_got[1], .type = SYMBOL_BIND_GLOBAL},
+		{.name = "__fini_array_start", .address = &linkset->constructor_got[2], .type = SYMBOL_BIND_GLOBAL},
+		{.name = "__fini_array_end", .address = &linkset->constructor_got[3], .type = SYMBOL_BIND_GLOBAL},
+		{.name = "__preinit_array_start", .address = &linkset->constructor_got[4], .type = SYMBOL_BIND_GLOBAL},
+		{.name = "__preinit_array_end", .address = &linkset->constructor_got[5], .type = SYMBOL_BIND_GLOBAL},
+	};
+	loader_add_starting_symbols(linkset, sizeof(syms) / sizeof(*syms), syms);
+}
+
+static void allocate_sections(struct linkset *linkset)
+{
+	if (!(linkset->constructors->section->allocated || linkset->destructors->section->allocated))
+		create_tructor_array(linkset);
+
+	struct sglib_assembly_data_iterator ait;
+	for (assembly_data *assembly = sglib_assembly_data_it_init(&ait, linkset->loaded_assemblies); assembly != NULL;
+		 assembly = sglib_assembly_data_it_next(&ait))
+	{
+		if (assembly->loaded)
+			continue;
+
+		struct sglib_section_data_iterator sit;
+		for (section_data *section = sglib_section_data_it_init(&sit, assembly->sections); section != NULL;
+			 section = sglib_section_data_it_next(&sit))
+		{
+
+			void *target;
+			if (section->address != NULL)
+				target = section->address;
+			else if (section->tls)
+			{
+				ssize_t offset =
+					register_tls_segment(linkset, section->size, 1 << section->bfd_section->alignment_power, section);
+				assert(offset >= 0); // TODO: Error handling
+				section->address = (void *)(uintptr_t)offset;
+				target = (char *)linkset->tls_template + (uintptr_t)section->address;
+			}
+			else
+			{
+				void *addr = section_malloc(section->size, 1 << section->bfd_section->alignment_power);
+				assert(addr != NULL); // TODO: Error handling
+				target = section->address = addr;
+				section->allocated = true;
+			}
+
+			if (section->bfd_section->flags & SEC_LOAD)
+				bfd_get_section_contents(section->bfd_section->owner, section->bfd_section, target, 0, section->size);
+			else
+				memset(target, 0, section->size);
+		}
+	}
+}
+
 enum loader_error loader_finish_link(struct linkset *linkset)
 {
 	if (linkset == NULL)
 		return LOADER_ERROR_INVALID_FILE;
+
+	allocate_sections(linkset);
 
 	struct sglib_assembly_data_iterator ait;
 	for (assembly_data *assembly = sglib_assembly_data_it_init(&ait, linkset->loaded_assemblies); assembly != NULL;
@@ -677,7 +760,7 @@ enum loader_error loader_finish_link(struct linkset *linkset)
 						target_value = linkset->undefined_offset;
 						addend = 0;
 						linkset->undefined_offset += 8;
-						fprintf(stderr, "Undefined symbol `%s` pointed to 0x%04lx\n", b_sym->name, target_value);
+						// fprintf(stderr, "Undefined symbol `%s` pointed to 0x%04lx\n", b_sym->name, target_value);
 					}
 				}
 				else

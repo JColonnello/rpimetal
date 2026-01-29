@@ -52,10 +52,14 @@ destructor static void print_exit()
 	printf("Exitting kernel\n");
 }
 
+void _init(struct boot_info *info, union boot_userdata userdata)
+{
+	stdlib_set_mem_limits(info->memory_start, info->memory_end);
+}
+
 int kernel_start(struct boot_info *info, union boot_userdata userdata)
 {
 	struct boot_customdata *data = userdata.custom;
-	stdlib_set_mem_limits(info->memory_start, info->memory_end);
 	module_data_ptr = data->module_data;
 	void (*test)(int, int *) = data->test_function;
 
