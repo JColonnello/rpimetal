@@ -2,6 +2,7 @@
 *.d
 *.mk
 !config.example.mk
+**/.change
 
 # Object files
 *.o
