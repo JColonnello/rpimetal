@@ -859,7 +859,7 @@
 
 #define SGLIB_DL_LIST_SORT(type, list, comparator, previous, next) \
 	{ \
-		type *_dll_, *_dlp_, *_dlt_; \
+		type *_dll_; \
 		_dll_ = (list); \
 		if (_dll_ != NULL) \
 		{ \

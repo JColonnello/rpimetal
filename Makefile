@@ -17,10 +17,11 @@ AR := $(ARMGNU)-ar
 # Include user configuration
 
 ifeq (,$(wildcard ./config.mk))
-include config.example.mk
+CONFIG = config.example.mk
 else
-include config.mk
+CONFIG = config.mk
 endif
+include $(CONFIG)
 
 # Dirs and files
 
@@ -32,9 +33,9 @@ SD = sd.img
 
 # Phony targets
 
-.PHONY: all clean rebuild run debug uart0 toolchain undef run-vnc debug-vnc sync mux-tcp
+.PHONY: all clean rebuild change run debug uart0 toolchain undef run-vnc debug-vnc sync mux-tcp
 
-all: $(IMAGE) $(SD)
+all: $(BUILD_DIR)/.change .WAIT $(IMAGE) $(SD) 
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -42,6 +43,12 @@ clean:
 rebuild:
 	$(MAKE) clean
 	$(MAKE) all
+
+change $(BUILD_DIR)/.change: $(CONFIG)
+	@mkdir -p $(BUILD_DIR)
+	@touch $(BUILD_DIR)/.change
+	rm -rf $(BUILD_DIR)/payloads
+	rm -rf $(BUILD_DIR)/kernel8.img
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw # -d int

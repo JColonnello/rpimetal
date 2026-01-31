@@ -2,6 +2,7 @@
 *.d
 *.mk
 !config.example.mk
+**/.change
 
 # Object files
 *.o
@@ -17,6 +18,8 @@
 # Precompiled Headers
 *.gch
 *.pch
+build/**/*.c
+build/**/*.S
 
 # Libraries
 *.lib
@@ -38,7 +41,6 @@
 *.x86_64
 *.hex
 *.img
-build/multiplex
 
 # Debug files
 *.dSYM/
@@ -56,6 +58,3 @@ toolchain/tarballs/
 
 # Auxiliary miscelaneous files
 misc/
-
-# AI Agents configuration files
-.github/

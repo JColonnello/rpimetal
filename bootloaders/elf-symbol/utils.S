@@ -28,13 +28,14 @@ delay:
 	
 .macro stub func
 .section .text
-0:
-.string "\func"
+.balign 8
 .global \func
 \func:
-	adr x0, 0b
+	adr x0, 0f
 	b undef_func
 	ret
+0:
+.string "\func"
 .endm
 
 stub _lseek
