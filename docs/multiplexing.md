@@ -8,35 +8,34 @@ In **plain mode**, the UART transmits raw ASCII text directly. This is simple bu
 
 In **muxed mode**, data is encapsulated in packets with channel identifiers, allowing multiple logical channels to share the same physical connection.
 
-```
-┌───────────────────────────────────────────────────┐
-│                    Raspberry Pi                   │
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐            │
-│  │ Channel │  │ Channel │  │ Channel │            │
-│  │    0    │  │    1    │  │    2    │            │
-│  │ stdout  │  │ stderr  │  │  debug  │            │
-│  └────┬────┘  └────┬────┘  └────┬────┘            │
-│       └────────────┼────────────┘                 │
-│                ┌───┴───┐                          │
-│                │  MUX  │ (sys/mux module)         │
-│                └───┬───┘                          │
-│                    │                              │
-│                ┌───┴───┐                          │
-│                │ UART  │                          │
-│                └───┬───┘                          │
-└────────────────────┼──────────────────────────────┘
-                     │ Serial/TCP
-┌────────────────────┼──────────────────────────────┐
-│                ┌───┴───┐                          │
-│                │DEMUX  │ (multiplex tool)         │
-│                └───┬───┘                          │
-│        ┌───────────┼───────────┐                  │
-│   ┌────┴────┐  ┌───┴────┐  ┌───┴────┐             │
-│   │ nc :4440│  │ nc:4441│  │ nc:4442│             │
-│   │ stdout  │  │ stderr │  │  debug │             │
-│   └─────────┘  └────────┘  └────────┘             │
-│                     Host                          │
-└───────────────────────────────────────────────────┘
+```mermaid
+---
+config:
+ flowchart:
+  curve: linear
+---
+graph TB
+	subgraph Raspberry Pi
+	c0["Channel 0
+	stdout"]
+	c1["Channel 1
+	stderr"]
+	c2["Channel 2
+	debug"]
+	c0 & c1 & c2 --> m
+	m[MUX]-->u
+	end
+	subgraph host [Host]
+	u[UART]-->d
+	d[DEMUX]
+	d --> n0 & n1 & n2
+	n0["nc :4440
+	stdout"]
+	n1["nc :4441
+	stderr"]
+	n2["nc :4442
+	debug"]
+	end
 ```
 
 ## Protocol Specification
@@ -45,19 +44,21 @@ In **muxed mode**, data is encapsulated in packets with channel identifiers, all
 
 Each packet consists of a 4-byte header followed by the message payload:
 
-```
-┌──────────────────┬──────────────────┬─────────────────────┬─────────┐
-│  Channel (2B)    │  Length (2B)     │  Payload (0-252B)   │ Padding │
-│  int16_t         │  uint16_t        │  variable           │         │
-└──────────────────┴──────────────────┴─────────────────────┴─────────┘
-```
-
 | Field | Size | Type | Description |
 |-------|------|------|-------------|
 | Channel | 2 bytes | `int16_t` (signed) | Channel identifier. Negative values reserved for control. |
 | Length | 2 bytes | `uint16_t` (unsigned) | Payload length in bytes (0-252) |
 | Payload | 0-252 bytes | raw data | The message content |
 | Padding | 0-7 bytes | zeros | Padding to align total packet size to 8-byte boundary |
+
+Example for a 13 byte payload:
+```mermaid
+packet
+0-1: "Channel"
+2-3: "Length"
+4-16: "Payload"
+17-23: "Padding"
+```
 
 ### Alignment Rule
 

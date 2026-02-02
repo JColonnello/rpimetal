@@ -22,21 +22,21 @@ Binary image (kernel8.img)
 
 ```
 rpimetal/
-├── Makefile              # Main build file
-├── config.mk             # User configuration (create from config.example.mk)
-├── config.example.mk     # Example configuration
-├── build/                # Build artifacts (generated)
-│   ├── kernel.ko         # Compiled kernel
-│   ├── kernel8.elf       # Linked ELF executable
-│   ├── modules/          # Compiled modules
-│   ├── bootloaders/      # Compiled bootloaders
-│   └── examples/         # Compiled examples
-├── output/               # Final outputs
-│   └── kernel8.img       # Binary image for Raspberry Pi
-├── modules/              # Reusable kernel modules
-│   └── Makefile          # Module list definitions
-├── bootloaders/          # Available bootloaders
-└── examples/             # Example programs
++-- Makefile              # Main build file
++-- config.mk             # User configuration (create from config.example.mk)
++-- config.example.mk     # Example configuration
++-- build/                # Build artifacts (generated)
+|   +-- kernel.ko         # Compiled kernel
+|   +-- kernel8.elf       # Linked ELF executable
+|   +-- modules/          # Compiled modules
+|   +-- bootloaders/      # Compiled bootloaders
+|   +-- examples/         # Compiled examples
++-- output/               # Final outputs
+|   +-- kernel8.img       # Binary image for Raspberry Pi
++-- modules/              # Reusable kernel modules
+|   +-- Makefile          # Module list definitions
++-- bootloaders/          # Available bootloaders
++-- examples/             # Example programs
 ```
 
 ## Configuration

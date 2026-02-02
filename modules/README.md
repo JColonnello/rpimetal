@@ -132,9 +132,9 @@ MULTI_MODULES = testing/test3 libc
 
 ```
 modules/
-└── mymodule/
-    ├── mymodule.c
-    └── Makefile
++-- mymodule/
+    +-- mymodule.c
+    +-- Makefile
 ```
 
 ### 2. Write the Source Code
@@ -290,19 +290,19 @@ After building, module artifacts are in:
 
 ```
 build/
-└── modules/
-    ├── arm/
-    │   ├── irq.ko
-    │   └── mmu-basic.ko
-    ├── drivers/
-    │   ├── uart.ko
-    │   ├── timer.ko
-    │   └── ...
-    ├── sys/
-    │   ├── mux.ko
-    │   └── printf.ko
-    └── loader/
-        └── loader.ko
++-- modules/
+    +-- arm/
+    |   +-- irq.ko
+    |   +-- mmu-basic.ko
+    +-- drivers/
+    |   +-- uart.ko
+    |   +-- timer.ko
+    |   +-- ...
+    +-- sys/
+    |   +-- mux.ko
+    |   +-- printf.ko
+    +-- loader/
+        +-- loader.ko
 ```
 
 ## Further Reading

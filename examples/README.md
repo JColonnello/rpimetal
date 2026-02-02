@@ -34,10 +34,10 @@ Each example follows a similar structure:
 
 ```
 examples/
-└── my-example/
-    ├── kernel.c      # Main program code (entry point: kernel_start)
-    ├── Makefile      # Defines KERNEL_MODULES used by this example
-    └── *.c, *.h      # Additional source files (optional)
++-- my-example/
+    +-- kernel.c      # Main program code (entry point: kernel_start)
+    +-- Makefile      # Defines KERNEL_MODULES used by this example
+    +-- *.c, *.h      # Additional source files (optional)
 ```
 
 ### The Makefile
