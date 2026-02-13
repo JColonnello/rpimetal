@@ -45,7 +45,6 @@ int main(void)
 		{.name = "__stack", .address = (void *)0x80000},
 		{.name = "__bss_start__", .address = NULL},
 		{.name = "__bss_end__", .address = NULL},
-		{.name = "_fini", .address = fini},
 	};
 
 	void *mem_end = sbrk(0);

@@ -1,4 +1,5 @@
 #include "attrib.h"
+#include <drivers/mbox.h>
 #include <drivers/uart.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -81,5 +82,6 @@ noreturn weak alias(halt, proc_hang);
 
 void _exit(int status)
 {
+	mbox_power_off();
 	halt();
 }

@@ -16,12 +16,7 @@
 
 weak extern void (*__fini_array_start[])(void);
 weak extern void (*__fini_array_end[])(void);
-
-weak extern void _fini(void);
-
-void _fini(void)
-{
-}
+weak extern void _fini(void) {};
 
 /* Run all the cleanup routines.  */
 void libc_fini_array(void)

@@ -24,7 +24,10 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 
 - Common developer workflows & commands (copyable)
   - Build everything: `make all` (at repo root). Already configured as default build task in VSCode.
-  - Run in QEMU inline (for agents): `make run-mux-inline`. Uses config-mult.txt as configuration and redirects channels 0 to stdin/stdout and 1 to stderr. Runs indefinitely, so it needs to be cut short using `timeout` or by pipeing it into other commands that terminate on their own (e.g., `head`).
+  - Run in QEMU inline (for agents): `make run-mux-inline`. **VERY IMPORTANT**: The command runs indefinitely, so you need to:
+    * Cut it short using `timeout`
+    * Pipe it into other commands that terminate on their own (e.g., `grep -m1`)
+    * Have the program under test trigger a shutdown after its logic runs (see `examples/linking/stdlib.c` for an example of how to do this via the mailbox).
 
 - Project-specific conventions & patterns
   - Modules pattern: module folders live in `modules/<name>/`. A module appears in build via entries in top-level module lists, the `examples` Makefile's `KERNEL_MODULES` variable, or the `bootloaders/` Makefile's `BOOT_MODULES` variable.
