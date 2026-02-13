@@ -72,6 +72,14 @@ static void map_pins()
 	*GPPUDCLK0 = 0; // flush GPIO setup
 }
 
+void uart_plain_mode()
+{
+	int16_t buf[4] = {INT16_MIN, 0};
+	uart_send_buffer((char *)buf, sizeof(buf));
+}
+
+weak enum uart_mode uart_mode = UART_MODE_PLAIN;
+
 /**
  * Set baud rate and characteristics (115200 8N1) and map to GPIO
  */
@@ -85,12 +93,14 @@ constructor static void uart_init()
 			asm volatile("nop");
 		*UART0_CR = 0; // Turn off UART0
 	}
+	if (uart_mode == UART_MODE_PLAIN)
+		uart_plain_mode();
+	
 	map_pins();
-
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
-	*UART0_IBRD = 2;
-	*UART0_FBRD = 0xB;
+	// *UART0_IBRD = 2;
+	// *UART0_FBRD = 0xB;
 	*UART0_LCRH = 0b11 << 5; // 8n1
 	*UART0_IMSC = 0;
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
@@ -103,4 +113,10 @@ static destructor void uart_destructor()
 	*UART0_CR = 0; // Turn off
 	*UART0_IMSC = 0;
 	irq_unregister(GPU_INTERRUPT2, 57);
+}
+
+void uart_send_buffer(const char *buf, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+		uart_send(buf[i]);
 }

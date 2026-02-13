@@ -33,7 +33,7 @@ SD = sd.img
 
 # Phony targets
 
-.PHONY: all clean rebuild change run debug uart0 toolchain undef run-vnc debug-vnc sync mux-tcp
+.PHONY: all clean rebuild change run debug uart0 toolchain undef run-vnc debug-vnc run-inline run-mux-inline sync mux-tcp
 
 all: $(BUILD_DIR)/.change .WAIT $(IMAGE) $(SD) 
 
@@ -62,11 +62,17 @@ run-vnc: all
 debug-vnc: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw -S -s -vnc :1,websocket=on # -d int
 
+run-inline: all
+	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial stdio -drive file=$(SD),if=sd,format=raw -vnc :1,websocket=on # -d int
+
+run-mux-inline: all
+	@./inline.sh
+
 uart0:
 	nc -lkvp 4444
 
-mux-tcp: output/multiplex
-	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'output/multiplex config-mult.txt',nofork
+mux-tcp: multiplex
+	socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'(./multiplex config-mult.txt; nc -N localhost 4440; echo Terminated >&2)',nofork
 
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
@@ -127,9 +133,7 @@ $(BUILD_DIR)/%.s.o : %.s
 
 # Tools
 
-.PHONY:
-multiplex: output/multiplex
-output/multiplex: toolchain/multiplex.c
+multiplex: toolchain/multiplex.c
 	gcc -g -o $@ $<
 
 # Other Makefiles

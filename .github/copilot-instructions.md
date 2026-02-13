@@ -24,11 +24,7 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 
 - Common developer workflows & commands (copyable)
   - Build everything: `make all` (at repo root). Already configured as default build task in VSCode.
-  - Run in QEMU: `make run-vnc`
-  - Debug (waits for gdb): `make debug-vnc` (adds `-S -s` to qemu). The default debug task already starts QEMU and gdb, no extra commands needed.
-  - Open serial console (in plain mode): `nc -lkvp 4444`. Already open in VSCode terminal named "Terminal"
-  - Open serial console (in mux mode): `nc -lkvp 4440` and `nc -lkvp 4441`. Already open in VSCode terminals named "stdout" and "stderr"
-  - Multiplex serial to TCP: `make mux-tcp` (uses `socat` and `output/multiplex` with `config-mult.txt`). Already running when switching to "muxed" session in 'Terminal Keeper' extension.
+  - Run in QEMU inline (for agents): `make run-mux-inline`. Uses config-mult.txt as configuration and redirects channels 0 to stdin/stdout and 1 to stderr. Designed to be used with file redirection like `make run-mux-inline > log.txt < input.txt`
 
 - Debugging notes
   - Serial I/O is exposed on TCP port 4444 — tests and interactive sessions use `nc` or `socat`. When using muxing, the muxer reads from port 4444 and connects to multiple clients.

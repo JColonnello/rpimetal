@@ -247,7 +247,14 @@ tx:
 	*UART0_IMSC &= ~INT_TX; // disable TX interrupt
 }
 
+void uart_plain_mode()
+{
+	int16_t buf[4] = {INT16_MIN, 0};
+	uart_send_buffer((char *)buf, sizeof(buf));
+}
+
 weak unsigned uart_target_baud = 921600; // Desired baud rate
+weak enum uart_mode uart_mode = UART_MODE_PLAIN;
 
 /**
  * Set baud rate and characteristics (115200 8N1) and map to GPIO
@@ -268,6 +275,8 @@ constructor static void uart_init()
 			asm volatile("nop");
 		*UART0_CR = 0; // Turn off UART0
 	}
+	if (uart_mode == UART_MODE_PLAIN)
+		uart_plain_mode();
 
 	map_pins();
 	// *UART0_FBRD = 4;

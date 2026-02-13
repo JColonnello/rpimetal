@@ -19,13 +19,22 @@ void *memcpy(void *dest, const void *src, size_t n)
 	return dest;
 }
 
+static void uart_receive_callback(char c)
+{
+	// Echo received character
+	printf("%x", c);
+}
+
 int kernel_start()
 {
 	init_printf(0, _putc);
 	printf("Hello, RPi Metal!\n");
+	uart_set_rx_callback(uart_receive_callback);
 	// Exception test
 	// unsigned int r=*((volatile unsigned int*)0xFFFFFFFFFF000000);
 	// r++;
+	for (;;)
+		asm("wfi");
 
 	return 0;
 }

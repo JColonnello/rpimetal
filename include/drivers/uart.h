@@ -15,3 +15,9 @@ void uart_send_raw(const char *s, size_t n);
 void uart_flush_tx();
 
 extern unsigned uart_target_baud; // Desired baud rate
+enum uart_mode
+{
+	UART_MODE_PLAIN,
+	UART_MODE_MUXED,
+};
+extern enum uart_mode uart_mode;

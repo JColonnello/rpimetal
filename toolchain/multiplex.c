@@ -178,16 +178,18 @@ int handle_stdin_packet()
 	int16_t channel = *(int16_t *)buffer;
 	uint16_t length = *(uint16_t *)(buffer + 2);
 
+	uint16_t remaining = length + HEADER_SIZE + LENGTH_MULT - 1;
+	remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
+	remaining -= HEADER_SIZE;                          // We already read the header
 	// Find channel
 	int idx = find_channel(channel);
 	if (idx == -1 || length > MAX_MESSAGE_SIZE)
 	{
 		// Skip packet
-		if (idx == -1)
+		if (idx == -1 && channel != INT16_MIN)
 			fprintf(stderr, "Unknown channel %d, skipping packet\n", channel);
 		else if (length > MAX_MESSAGE_SIZE)
 			fprintf(stderr, "Packet length %d exceeds maximum %d, skipping packet\n", length, MAX_MESSAGE_SIZE);
-		uint16_t remaining = length;
 		while (remaining > 0)
 		{
 			int to_read = remaining > sizeof(buffer) ? sizeof(buffer) : remaining;
@@ -199,14 +201,16 @@ int handle_stdin_packet()
 			}
 			remaining -= bytes_read;
 		}
+		if (channel == INT16_MIN)
+		{
+			fprintf(stderr, "Received exit message\n");
+			return -1;
+		}
 		return 0;
 	}
 
 	fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
 	// Forward packet data to subprocess
-	uint16_t remaining = length + HEADER_SIZE + LENGTH_MULT - 1;
-	remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
-	remaining -= HEADER_SIZE;                          // We already read the header
 	while (remaining > 0)
 	{
 		int bytes_read = read(STDIN_FILENO, &buffer[count], remaining);

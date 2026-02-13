@@ -41,6 +41,7 @@ build/**/*.S
 *.x86_64
 *.hex
 *.img
+multiplex
 
 # Debug files
 *.dSYM/

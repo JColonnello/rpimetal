@@ -38,6 +38,7 @@ static channel_tree *channels = NULL;
 static char rx_mesg_buf[MAX_MESSAGE_SIZE + HEADER_SIZE];
 static unsigned rx_mesg_bytes;
 
+enum uart_mode uart_mode = UART_MODE_MUXED;
 weak size_t mux_stdio_buffer_size = 1024;
 
 constructor void callbacks()
