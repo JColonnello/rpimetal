@@ -33,7 +33,7 @@ SD = sd.img
 
 # Phony targets
 
-.PHONY: all clean rebuild change run debug uart0 toolchain undef run-vnc debug-vnc run-inline run-mux-inline sync mux-tcp
+.PHONY: all clean rebuild change run debug uart0 toolchain undef run-vnc debug-vnc run-inline sync mux-tcp
 
 all: $(BUILD_DIR)/.change .WAIT $(IMAGE) $(SD) 
 
@@ -64,9 +64,6 @@ debug-vnc: all
 
 run-inline: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial stdio -drive file=$(SD),if=sd,format=raw -vnc :1,websocket=on # -d int
-
-run-mux-inline: all
-	@./inline.sh
 
 uart0:
 	nc -lkvp 4444

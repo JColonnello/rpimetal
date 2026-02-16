@@ -24,8 +24,7 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 
 - Common developer workflows & commands (copyable)
   - Build everything: `make all` (at repo root). Already configured as default build task in VSCode.
-  - Run in QEMU inline (for agents): `make run-mux-inline`. **VERY IMPORTANT**: The command runs indefinitely, so you need to:
-    * Cut it short using `timeout`
+  - Run in QEMU inline (for agents): `./inline.sh [timeout]`. The command timeouts after 5 seconds by default. Other ways to make sure the agent doesn't get stuck in an infinite loop:
     * Pipe it into other commands that terminate on their own (e.g., `grep -m1`)
     * Have the program under test trigger a shutdown after its logic runs (see `examples/linking/stdlib.c` for an example of how to do this via the mailbox).
 
