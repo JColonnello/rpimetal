@@ -8,7 +8,7 @@
 			"name": "Multiplex Debug",
 			"type": "cppdbg",
 			"request": "attach",
-			"program": "${workspaceFolder}/build/multiplex",
+			"program": "${workspaceFolder}/multiplex",
 			"MIMode": "gdb",
 			"setupCommands": [
 				{
