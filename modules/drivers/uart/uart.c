@@ -202,12 +202,25 @@ static void handle_uart0(void *data)
 			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
 			break;
 		}
+		static char read_buffer[UART_STEP];
 		for (j = 0; j < UART_STEP; i--, j++)
 		{
+			static uint32_t last_fr;
+			while ((flag = *UART0_FR) & FR_RXFE_MASK)
+			{
+				last_fr++;
+				has_data = false;
+				if (last_fr > 100)
+				{
+					fprintf(stderr, "UART RX missing bytes. Waiting\n");
+					break;
+				}
+			}
 			char c = (char)(*UART0_DR);
-			ring_buffer_queue_nc(&uart_rx_buffer, c);
+			read_buffer[j] = c;
 		}
-		is = *UART0_RIS;
+		ring_buffer_queue_arr(&uart_rx_buffer, read_buffer, UART_STEP);
+		is = *UART0_MIS;
 		if (!(is & INT_RX))
 			has_data = false;
 
@@ -219,6 +232,8 @@ static void handle_uart0(void *data)
 	}
 
 tx:
+	if (!(is & INT_TX))
+		return;
 	// If there is no space to send, skip
 	if (flag & FR_TXFF_MASK)
 		return;
