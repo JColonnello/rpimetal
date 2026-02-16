@@ -1,0 +1,1 @@
+KERNEL_MODULES := arm/mmu-basic libc/libc arm/irq drivers/timer sys/mux drivers/mbox drivers/uart drivers/sd2 fs/fat
