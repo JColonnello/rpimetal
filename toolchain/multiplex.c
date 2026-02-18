@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <signal.h>
@@ -10,9 +11,9 @@
 #include <unistd.h>
 
 #define MAX_CHANNELS 256
-#define MAX_MESSAGE_SIZE 252
+#define MAX_MESSAGE_SIZE 246
 #define HEADER_SIZE 4
-#define LENGTH_MULT 8
+#define LENGTH_MULT 12
 
 _Static_assert(
 	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
@@ -31,6 +32,7 @@ typedef struct
 static channel_info_t channels[MAX_CHANNELS];
 static int num_channels = 0;
 static volatile int should_exit = 0;
+static bool print_debug = false;
 
 void signal_handler(int sig)
 {
@@ -209,7 +211,8 @@ int handle_stdin_packet()
 		return 0;
 	}
 
-	fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
+	if (print_debug)
+		fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
 	// Forward packet data to subprocess
 	while (remaining > 0)
 	{
@@ -248,7 +251,8 @@ int handle_subprocess_output(int idx)
 	*(int16_t *)buffer = channels[idx].channel;
 	*(uint16_t *)(buffer + 2) = bytes_read;
 
-	fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
+	if (print_debug)
+		fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
 	// Round up bytes_read so (bytes_read + HEADER_SIZE) is multiple of LENGTH_MULT
 	unsigned to_write = bytes_read + HEADER_SIZE + LENGTH_MULT - 1;
 	to_write = to_write / LENGTH_MULT * LENGTH_MULT;

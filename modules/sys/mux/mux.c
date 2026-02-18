@@ -25,9 +25,9 @@ typedef struct channel_tree
 SGLIB_DEFINE_RBTREE_PROTOTYPES(channel_tree, left, right, color, TREE_COMPARE)
 SGLIB_DEFINE_RBTREE_FUNCTIONS(channel_tree, left, right, color, TREE_COMPARE)
 
-#define MAX_MESSAGE_SIZE 252
+#define MAX_MESSAGE_SIZE 246
 #define HEADER_SIZE 4
-#define LENGTH_MULT 8
+#define LENGTH_MULT 12
 _Static_assert(
 	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
 	"Header size + message size must be multiple of length alignment"

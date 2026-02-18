@@ -108,7 +108,7 @@
 #define INT_DCDM (1 << 2)
 #define INT_CTSM (1 << 1)
 
-#define UART_STEP 8
+#define UART_STEP 12
 
 uint32_t nLCRH = LCRH_FEN_MASK;
 static char raw_rx_buffer[2048], raw_tx_buffer[2048];
@@ -264,7 +264,7 @@ tx:
 
 void uart_plain_mode()
 {
-	int16_t buf[4] = {INT16_MIN, 0};
+	int16_t buf[6] = {INT16_MIN, 0};
 	uart_send_buffer((char *)buf, sizeof(buf));
 }
 
@@ -334,14 +334,14 @@ constructor static void uart_init()
 	*UART0_IBRD = idiv;
 	*UART0_FBRD = fdiv;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_3_4 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
 	// We send dummy characters and enable interrupts
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
-	for (int i = 8; i--;)
+	for (int i = UART_STEP; i--;)
 		*UART0_DR = 0;
 	*UART0_IMSC = INT_RX | INT_TX;
 	while (*UART0_FR & FR_BUSY_MASK)
