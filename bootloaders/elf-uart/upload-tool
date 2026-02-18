@@ -18,7 +18,7 @@ fi
 filelist="$1"
 if [ ! -f "$filelist" ]; then
 	echo "file-list not found: $filelist" >&2
-	exit 2
+	sleep infinity
 fi
 
 # Read file-list preserving blank lines
@@ -65,4 +65,5 @@ done
 
 # Signal done
 printf "DONE\n"
+sleep infinity
 exit 0

@@ -45,7 +45,7 @@ static ssize_t recv_line(int16_t channel, char *buf, size_t max)
 	for (;;)
 	{
 		while (mux_rx_available(channel) == 0)
-			;
+			asm("wfi");
 		size_t n = mux_recv(channel, &c, 1);
 		if (n == 0)
 			continue;
@@ -70,7 +70,7 @@ static int recv_n(int16_t channel, void *buf, size_t len)
 	while (left > 0)
 	{
 		while (mux_rx_available(channel) == 0)
-			;
+			asm("wfi");
 		size_t n = mux_recv(channel, p, left);
 		if (n == 0)
 			continue;
@@ -106,20 +106,14 @@ int main(void)
 		if (recv_line(-1, path, sizeof(path)) < 0)
 			return -1;
 		if (path[0] == '\0')
-		{
-			/* Separator: finish the kernel-phase link */
-			if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
-			{
-				fputs("Linking failed!\n", stdout);
-				return -1;
-			}
+
 			break;
-		}
 
 		char size_line[32];
 		if (recv_line(-1, size_line, sizeof(size_line)) < 0)
 			return -1;
 		size_t size = (size_t)strtoul(size_line, NULL, 10);
+		fprintf(stdout, "Receiving file %s of size %lu\n", path, size);
 		void *buf = malloc(size);
 		if (!buf)
 		{
@@ -136,11 +130,23 @@ int main(void)
 			free(buf);
 			continue;
 		}
-		loader_read_file(linkset, f, path);
-		fclose(f);
+		enum loader_error err = loader_read_file(linkset, f, path);
+		if (err != LOADER_ERROR_NONE)
+		{
+			fprintf(stdout, "Failed to load received payload %s\n", path);
+			fclose(f);
+			free(buf);
+			continue;
+		}
 		/* Acknowledge receipt */
 		mux_send(-1, "ACK\n", 4);
 		/* keep buffer around until after finish_link (loader may copy or reference) */
+	}
+	/* Separator: finish the kernel-phase link */
+	if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
+	{
+		fputs("Linking failed!\n", stdout);
+		return -1;
 	}
 
 	/* Extra-phase: receive files one-by-one, finish link after each */

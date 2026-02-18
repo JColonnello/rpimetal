@@ -53,6 +53,7 @@ multiplex
 .cache/
 compile_commands.json
 output/
+build/file-list.txt
 
 # Toolchain tarballs
 toolchain/tarballs/

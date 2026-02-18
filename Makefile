@@ -48,7 +48,8 @@ change $(BUILD_DIR)/.change: $(CONFIG)
 	@mkdir -p $(BUILD_DIR)
 	@touch $(BUILD_DIR)/.change
 	rm -rf $(BUILD_DIR)/payloads
-	rm -rf $(BUILD_DIR)/kernel8.img
+	rm -rf $(BUILD_DIR)/file-list.txt
+	rm -rf $(BUILD_DIR)/kernel8.elf
 
 run: all
 	qemu-system-aarch64 -M raspi3b -kernel $(IMAGE) -serial tcp:localhost:4444 -drive file=$(SD),if=sd,format=raw # -d int
