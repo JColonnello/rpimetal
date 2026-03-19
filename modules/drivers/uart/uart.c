@@ -183,53 +183,76 @@ static void map_pins()
 	*GPPUDCLK0 = 0; // flush GPIO setup
 }
 
+union uart_dr
+{
+	uint16_t raw;
+	struct
+	{
+		char data : 8;
+		unsigned fe : 1;
+		unsigned pe : 1;
+		unsigned be : 1;
+		unsigned oe : 1;
+	} fields;
+	struct
+	{
+		char data : 8;
+		unsigned error : 4;
+	} grouped;
+};
+
 static void handle_uart0(void *data)
 {
 	uint32_t flag = *UART0_FR, is = *UART0_MIS;
 	unsigned i, j;
-	bool has_data = true;
 
+	/*
+	QEMU: The RX interrupt gets signaled when there is any data in the FIFO, the threshold gets ignored
+	The RT interrupt does not work
+	*/
 	// If there is nothing to read, skip
-	if (!(is & INT_RX))
+	if (!(is & (INT_RX | INT_RT)))
 		goto tx;
 
-	for (;;)
+	do
 	{
 		i = ring_buffer_capacity(&uart_rx_buffer);
 		// If there is no more space in the buffer, me mask the interrupt until there is space
 		if (i < UART_STEP)
 		{
-			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
+			*UART0_IMSC &= ~(INT_RX | INT_RT); // disable RX interrupt
 			break;
 		}
-		static char read_buffer[UART_STEP];
+		static union uart_dr read_buffer[UART_STEP];
 		for (j = 0; j < UART_STEP; i--, j++)
 		{
-			static uint32_t last_fr;
-			while ((flag = *UART0_FR) & FR_RXFE_MASK)
-			{
-				last_fr++;
-				has_data = false;
-				if (last_fr > 100)
-				{
-					fprintf(stderr, "UART RX missing bytes. Waiting\n");
-					break;
-				}
-			}
-			char c = (char)(*UART0_DR);
+			if ((flag = *UART0_FR) & FR_RXFE_MASK)
+				break;
+			union uart_dr c = {.raw = *UART0_DR};
 			read_buffer[j] = c;
 		}
-		ring_buffer_queue_arr(&uart_rx_buffer, read_buffer, UART_STEP);
-		is = *UART0_MIS;
-		if (!(is & INT_RX))
-			has_data = false;
+
+		char chars[UART_STEP];
+		for (int k = 0; k < j; k++)
+		{
+			chars[k] = read_buffer[k].fields.data;
+			if (read_buffer[k].grouped.error)
+				fprintf(
+					stderr,
+					"UART RX error in byte %d: %s%s%s%s\n",
+					k,
+					read_buffer[k].fields.fe ? "FE " : "",
+					read_buffer[k].fields.pe ? "PE " : "",
+					read_buffer[k].fields.be ? "BE " : "",
+					read_buffer[k].fields.oe ? "OE " : ""
+				);
+		}
+		ring_buffer_queue_arr(&uart_rx_buffer, chars, j);
 
 		// Signal the callback
 		uart_rx_callback(sizeof(raw_rx_buffer) - i);
 		// If there is nothing else to read, stop
-		if (!has_data)
-			break;
-	}
+	} while (false);
 
 tx:
 	if (!(is & INT_TX))
@@ -343,7 +366,7 @@ constructor static void uart_init()
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
 	for (int i = UART_STEP; i--;)
 		*UART0_DR = 0;
-	*UART0_IMSC = INT_RX | INT_TX;
+	*UART0_IMSC = INT_RX | INT_TX | INT_RT;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");
 }
@@ -366,7 +389,7 @@ static inline void signal_tx()
 
 static inline void signal_rx()
 {
-	*UART0_IMSC |= INT_RX;
+	*UART0_IMSC |= INT_RX | INT_RT;
 }
 
 void uart_send_raw(const char *s, size_t n)
