@@ -24,6 +24,7 @@
  */
 
 /* a properly aligned buffer */
+#include <stdnoreturn.h>
 extern volatile unsigned int mbox[36];
 
 #define MBOX_REQUEST 0
@@ -48,3 +49,5 @@ int mbox_call(unsigned char ch);
 unsigned mbox_read();
 void mbox_wait();
 void mbox_print();
+noreturn void mbox_power_off();
+noreturn void mbox_reset();

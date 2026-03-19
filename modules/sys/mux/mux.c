@@ -25,9 +25,9 @@ typedef struct channel_tree
 SGLIB_DEFINE_RBTREE_PROTOTYPES(channel_tree, left, right, color, TREE_COMPARE)
 SGLIB_DEFINE_RBTREE_FUNCTIONS(channel_tree, left, right, color, TREE_COMPARE)
 
-#define MAX_MESSAGE_SIZE 252
-#define HEADER_SIZE 4
-#define LENGTH_MULT 8
+#define MAX_MESSAGE_SIZE 246
+#define HEADER_SIZE 6
+#define LENGTH_MULT 12
 _Static_assert(
 	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
 	"Header size + message size must be multiple of length alignment"
@@ -55,6 +55,16 @@ static channel_tree *search_channel(int16_t channel)
 	return sglib_channel_tree_find_member(channels, search);
 }
 
+static uint16_t calculate_checksum(const char *data, size_t length)
+{
+	uint16_t checksum = 0;
+	for (size_t i = 0; i < length; i++)
+	{
+		checksum += (uint8_t)data[i];
+	}
+	return checksum;
+}
+
 void mux_process_input(size_t available)
 {
 	if (available == 0)
@@ -76,6 +86,7 @@ void mux_process_input(size_t available)
 		}
 		int16_t curr_mesg_channel = *(int16_t *)rx_mesg_buf;
 		uint16_t curr_mesg_len = *(uint16_t *)(rx_mesg_buf + 2);
+		uint16_t curr_mesg_checksum = *(uint16_t *)(rx_mesg_buf + 4);
 		if (curr_mesg_len > MAX_MESSAGE_SIZE)
 		{
 			fprintf(stderr, "Received message length %d exceeds maximum %d\n", curr_mesg_len, MAX_MESSAGE_SIZE);
@@ -98,6 +109,18 @@ void mux_process_input(size_t available)
 		}
 
 		channel_tree *channel = search_channel(curr_mesg_channel);
+		uint16_t calculated_checksum = calculate_checksum(&rx_mesg_buf[HEADER_SIZE], curr_mesg_len);
+		if (calculated_checksum != curr_mesg_checksum)
+		{
+			fprintf(
+				stderr,
+				"Checksum mismatch for channel %d: calculated 0x%04x, expected 0x%04x\n",
+				curr_mesg_channel,
+				calculated_checksum,
+				curr_mesg_checksum
+			);
+		}
+
 		if (channel == NULL)
 		{
 			rx_mesg_bytes = 0;
@@ -135,9 +158,10 @@ void mux_process_output(size_t available)
 
 		if (available < curr_mesg_len + HEADER_SIZE)
 			return;
+		ring_buffer_dequeue_arr(&tx_next->tx, tx_buf + HEADER_SIZE, curr_mesg_len);
 		*(int16_t *)tx_buf = curr_mesg_channel;
 		*(uint16_t *)(tx_buf + 2) = curr_mesg_len;
-		ring_buffer_dequeue_arr(&tx_next->tx, tx_buf + HEADER_SIZE, curr_mesg_len);
+		*(uint16_t *)(tx_buf + 4) = calculate_checksum(tx_buf + HEADER_SIZE, curr_mesg_len);
 		if (tx_next->tx_callback)
 			tx_next->tx_callback(ring_buffer_capacity(&tx_next->tx));
 		unsigned to_write = curr_mesg_len + HEADER_SIZE + LENGTH_MULT - 1;

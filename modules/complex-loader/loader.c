@@ -646,7 +646,7 @@ static void create_tructor_array(struct linkset *linkset)
 
 static void allocate_sections(struct linkset *linkset)
 {
-	if (!(linkset->constructors->section->allocated || linkset->destructors->section->allocated))
+	if (linkset->constructor_got[0] == NULL && linkset->constructor_got[2] == NULL)
 		create_tructor_array(linkset);
 
 	struct sglib_assembly_data_iterator ait;

@@ -1,2 +1,3 @@
 0,nc localhost 4440
 1,nc localhost 4441
+-1,./bootloaders/elf-uart/upload-tool build/file-list.txt

@@ -36,7 +36,8 @@ struct ring_buffer
 	bool empty;
 };
 
-#define CLIP(buffer, var) var -= var >= buffer->end ? buffer->end - buffer->start : 0
+#define CLIP(buffer, var, increment) \
+	var += var + increment >= buffer->end ? buffer->start + increment - buffer->end : increment
 
 /**
  * @brief Initializes the ring buffer pointed to by <em>buffer</em>.
@@ -101,8 +102,8 @@ static inline bool ring_buffer_is_full(ring_buffer *buffer)
  */
 static inline void ring_buffer_queue_nc(ring_buffer *buffer, char data)
 {
-	*(buffer->tail++) = data;
-	CLIP(buffer, buffer->tail);
+	*buffer->tail = data;
+	CLIP(buffer, buffer->tail, 1);
 	buffer->empty = false;
 }
 
@@ -117,8 +118,8 @@ static inline bool ring_buffer_queue(ring_buffer *buffer, char data)
 	if (ring_buffer_is_full(buffer))
 		return false;
 
-	*(buffer->tail++) = data;
-	CLIP(buffer, buffer->tail);
+	*buffer->tail = data;
+	CLIP(buffer, buffer->tail, 1);
 	buffer->empty = false;
 	return true;
 }
@@ -182,10 +183,9 @@ static inline size_t ring_buffer_queue_arr(ring_buffer *buffer, const char *data
 	{
 		// Copy the data to the tail
 		memcpy(buffer->tail, data, size);
-		buffer->tail += size;
+		CLIP(buffer, buffer->tail, size);
 	}
 
-	CLIP(buffer, buffer->tail);
 	buffer->empty = false;
 	return size;
 }
@@ -198,8 +198,8 @@ static inline size_t ring_buffer_queue_arr(ring_buffer *buffer, const char *data
  */
 static inline char ring_buffer_dequeue_nc(ring_buffer *buffer)
 {
-	register char c = *(buffer->head++);
-	CLIP(buffer, buffer->head);
+	register char c = *buffer->head;
+	CLIP(buffer, buffer->head, 1);
 	if (buffer->head == buffer->tail)
 		buffer->empty = true; // Buffer is now empty
 	return c;
@@ -216,8 +216,8 @@ static inline bool ring_buffer_dequeue(ring_buffer *buffer, char *data)
 	if (buffer->empty)
 		return false; // Buffer is empty
 
-	*data = *(buffer->head++);
-	CLIP(buffer, buffer->head);
+	*data = *buffer->head;
+	CLIP(buffer, buffer->head, 1);
 
 	if (buffer->head == buffer->tail)
 		buffer->empty = true; // Buffer is now empty
@@ -253,10 +253,9 @@ static inline size_t ring_buffer_dequeue_arr(ring_buffer *buffer, char *data, si
 	{
 		// Copy the data to the array
 		memcpy(data, buffer->head, size);
-		buffer->head += size;
+		CLIP(buffer, buffer->head, size);
 	}
 
-	CLIP(buffer, buffer->head);
 	if (buffer->head == buffer->tail)
 		buffer->empty = true; // Buffer is now empty
 	return size;
@@ -274,8 +273,8 @@ static inline bool ring_buffer_peek(ring_buffer *buffer, char *data, size_t inde
 	if (index >= ring_buffer_num_items(buffer))
 		return false; // Index out of bounds
 
-	char *pos = buffer->head + index;
-	CLIP(buffer, pos);
+	char *pos = buffer->head;
+	CLIP(buffer, pos, index);
 	*data = *pos;
 	return true;
 }

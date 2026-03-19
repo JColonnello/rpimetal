@@ -1,4 +1,5 @@
 #pragma once
+#include <stdnoreturn.h>
 
 #ifndef alias
 /* Define ALIASNAME as a strong alias for NAME.  */
@@ -9,5 +10,4 @@
 #define weak __attribute__((weak))
 #define constructor __attribute__((constructor))
 #define destructor __attribute__((destructor))
-#define noreturn __attribute__((noreturn))
 #define thread __thread

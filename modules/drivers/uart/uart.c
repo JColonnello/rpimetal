@@ -108,7 +108,7 @@
 #define INT_DCDM (1 << 2)
 #define INT_CTSM (1 << 1)
 
-#define UART_STEP 8
+#define UART_STEP 12
 
 uint32_t nLCRH = LCRH_FEN_MASK;
 static char raw_rx_buffer[2048], raw_tx_buffer[2048];
@@ -183,42 +183,80 @@ static void map_pins()
 	*GPPUDCLK0 = 0; // flush GPIO setup
 }
 
+union uart_dr
+{
+	uint16_t raw;
+	struct
+	{
+		char data : 8;
+		unsigned fe : 1;
+		unsigned pe : 1;
+		unsigned be : 1;
+		unsigned oe : 1;
+	} fields;
+	struct
+	{
+		char data : 8;
+		unsigned error : 4;
+	} grouped;
+};
+
 static void handle_uart0(void *data)
 {
 	uint32_t flag = *UART0_FR, is = *UART0_MIS;
 	unsigned i, j;
-	bool has_data = true;
 
+	/*
+	QEMU: The RX interrupt gets signaled when there is any data in the FIFO, the threshold gets ignored
+	The RT interrupt does not work
+	*/
 	// If there is nothing to read, skip
-	if (!(is & INT_RX))
+	if (!(is & (INT_RX | INT_RT)))
 		goto tx;
 
-	for (;;)
+	do
 	{
 		i = ring_buffer_capacity(&uart_rx_buffer);
 		// If there is no more space in the buffer, me mask the interrupt until there is space
 		if (i < UART_STEP)
 		{
-			*UART0_IMSC &= ~INT_RX; // disable RX interrupt
+			*UART0_IMSC &= ~(INT_RX | INT_RT); // disable RX interrupt
 			break;
 		}
+		static union uart_dr read_buffer[UART_STEP];
 		for (j = 0; j < UART_STEP; i--, j++)
 		{
-			char c = (char)(*UART0_DR);
-			ring_buffer_queue_nc(&uart_rx_buffer, c);
+			if ((flag = *UART0_FR) & FR_RXFE_MASK)
+				break;
+			union uart_dr c = {.raw = *UART0_DR};
+			read_buffer[j] = c;
 		}
-		is = *UART0_RIS;
-		if (!(is & INT_RX))
-			has_data = false;
+
+		char chars[UART_STEP];
+		for (int k = 0; k < j; k++)
+		{
+			chars[k] = read_buffer[k].fields.data;
+			if (read_buffer[k].grouped.error)
+				fprintf(
+					stderr,
+					"UART RX error in byte %d: %s%s%s%s\n",
+					k,
+					read_buffer[k].fields.fe ? "FE " : "",
+					read_buffer[k].fields.pe ? "PE " : "",
+					read_buffer[k].fields.be ? "BE " : "",
+					read_buffer[k].fields.oe ? "OE " : ""
+				);
+		}
+		ring_buffer_queue_arr(&uart_rx_buffer, chars, j);
 
 		// Signal the callback
 		uart_rx_callback(sizeof(raw_rx_buffer) - i);
 		// If there is nothing else to read, stop
-		if (!has_data)
-			break;
-	}
+	} while (false);
 
 tx:
+	if (!(is & INT_TX))
+		return;
 	// If there is no space to send, skip
 	if (flag & FR_TXFF_MASK)
 		return;
@@ -249,7 +287,7 @@ tx:
 
 void uart_plain_mode()
 {
-	int16_t buf[4] = {INT16_MIN, 0};
+	int16_t buf[6] = {INT16_MIN, 0};
 	uart_send_buffer((char *)buf, sizeof(buf));
 }
 
@@ -319,16 +357,16 @@ constructor static void uart_init()
 	*UART0_IBRD = idiv;
 	*UART0_FBRD = fdiv;
 	*UART0_LCRH = 0x7 << 4; // 8n1, enable FIFOs
-	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_1_2 << IFLS_RXIFSEL_SHIFT;
+	*UART0_IFLS = IFLS_IFSEL_1_8 << IFLS_TXIFSEL_SHIFT | IFLS_IFSEL_3_4 << IFLS_RXIFSEL_SHIFT;
 	*UART0_IMSC = 0;
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 
 	// The TX interrupt does not get signaled until sending something
 	// We send dummy characters and enable interrupts
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
-	for (int i = 8; i--;)
+	for (int i = UART_STEP; i--;)
 		*UART0_DR = 0;
-	*UART0_IMSC = INT_RX | INT_TX;
+	*UART0_IMSC = INT_RX | INT_TX | INT_RT;
 	while (*UART0_FR & FR_BUSY_MASK)
 		asm volatile("nop");
 }
@@ -351,7 +389,7 @@ static inline void signal_tx()
 
 static inline void signal_rx()
 {
-	*UART0_IMSC |= INT_RX;
+	*UART0_IMSC |= INT_RX | INT_RT;
 }
 
 void uart_send_raw(const char *s, size_t n)

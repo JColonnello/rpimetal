@@ -21,9 +21,10 @@ No need to:
 ## Planned Features
 
 - **Serial upload**: Receive `.ko` files over UART
-- **Protocol support**: Compatible with existing upload tools (e.g., raspbootin-style)
+- **Protocol support**: Simple plain-text protocol (except file content) over a multiplexed channel
 - **Fallback**: Load default kernel if no upload within timeout
 - **Checksum verification**: Ensure file integrity
+- **Fast transfer**: Save received files to the SD card and only transfer updated files (by checking timestamp and checksum)
 
 ## Current State
 
@@ -39,9 +40,9 @@ Same as `elf-symbol/boot.S` — handles CPU initialization and EL2→EL1 transit
 
 Will be modified to:
 1. Initialize UART
-2. Wait for incoming data or timeout
-3. Receive kernel ELF over serial
-4. Load using the existing `loader` module
+2. Negotiate with the host or timeout
+3. Receive files over serial and save them
+4. Load using the existing `complex-loader` module (like `elf-symbol`)
 5. Jump to kernel
 
 ### linker.ld
@@ -50,7 +51,7 @@ Same as `elf-symbol/linker.ld`.
 
 ### Makefile
 
-Same as `elf-symbol/Makefile` but may exclude embedded kernel payload.
+Same as `elf-symbol/Makefile` but without embedded kernel payload. Instead generates list of files required and uses it during negotiation
 
 ## Planned Protocol
 
@@ -71,14 +72,25 @@ BOOTLOADER = bootloaders/elf-uart
 KERNEL = examples/my-program
 ```
 
+In `config-mult.txt`:
+```
+0,nc localhost 4440
+1,nc localhost 4441
+-1,./upload-tool build/file-list.txt
+```
+
 On host:
 
 ```bash
 # Build kernel
 make
 
-# Upload over serial
-./upload-tool /dev/ttyUSB0 build/kernel.ko
+# Have muxer running
+make mux-tcp
+# Run it, the upload protocol runs through channel -1 automatically
+make run-mux-inline
+# Or any other variant
+make run-vnc
 ```
 
 ## Related Projects
@@ -86,14 +98,3 @@ make
 This approach is inspired by:
 - [raspbootin](https://github.com/mrvn/raspbootin) — Serial bootloader for Raspberry Pi
 - [bootloader tutorials in raspi3-tutorial](https://github.com/bztsrc/raspi3-tutorial)
-
-## Contributing
-
-If you'd like to help complete this bootloader, the main tasks are:
-
-1. Implement serial receive protocol in `boot.c`
-2. Create host-side upload tool
-3. Add timeout and fallback behavior
-4. Test with various kernel sizes
-
-See the project's contribution guidelines for more information.

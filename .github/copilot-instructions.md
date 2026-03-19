@@ -10,7 +10,7 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
     - `examples/` — reference kernel/application examples. It demonstrates how modules and application logic are combined into the kernel image `kernel.ko`.
     - `modules/` — reusable modules (drivers, libc, loader, testing). Each module has a subfolder and may have its own `Makefile` (to tweak the build recipes).
     - `build/` — ephemeral build artifacts (object files, `.ko`, `kernel8.elf`). Do not edit directly.
-    - `output/` — final artifacts (e.g. `kernel8.img`, `multiplex`).
+    - `output/` — final artifacts (e.g. `kernel8.img`).
     - `docs/` — documentation
     - `remote-server/` — Docker Compose setup for PXE network boot and deployment to real Raspberry Pi hardware.
     - `include/` — public headers for each module, and other shared definitions.
@@ -18,17 +18,15 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 
 - How the build works (short)
   - Top-level `Makefile` includes `config.mk` (user configuration), module lists and then the bootloader and program (usually an example) makefiles.
-  - `[program]/Makefile` compiles source into `$(BUILD_DIR)/[program].ko`, then `kernel.ko`.
+  - `[program]/Makefile` compiles source into `$(BUILD_DIR)/[program].ko`.
   - `[bootloader]/Makefile` links `kernel8.elf` using `linker.ld` and payload modules; `objcopy` turns it into `output/kernel8.img`.
   - Modules are built as relocatable objects (`.ko`) via `-r` (partial linking).
 
 - Common developer workflows & commands (copyable)
   - Build everything: `make all` (at repo root). Already configured as default build task in VSCode.
-  - Run in QEMU inline (for agents): `make run-mux-inline`. Uses config-mult.txt as configuration and redirects channels 0 to stdin/stdout and 1 to stderr. Designed to be used with file redirection like `make run-mux-inline > log.txt < input.txt`
-
-- Debugging notes
-  - Serial I/O is exposed on TCP port 4444 — tests and interactive sessions use `nc` or `socat`. When using muxing, the muxer reads from port 4444 and connects to multiple clients.
-  stdout/stdin is usually sent in port 4440 and stderr in 4441.
+  - Run in QEMU inline (for agents): `./inline.sh [timeout]`. The command timeouts after 5 seconds by default. Other ways to make sure the agent doesn't get stuck in an infinite loop:
+    * Pipe it into other commands that terminate on their own (e.g., `grep -m1`)
+    * Have the program under test trigger a shutdown after its logic runs (see `examples/linking/stdlib.c` for an example of how to do this via the mailbox).
 
 - Project-specific conventions & patterns
   - Modules pattern: module folders live in `modules/<name>/`. A module appears in build via entries in top-level module lists, the `examples` Makefile's `KERNEL_MODULES` variable, or the `bootloaders/` Makefile's `BOOT_MODULES` variable.
@@ -38,13 +36,12 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 - Integration points & external dependencies
   - Runtime emulation: `qemu-system-aarch64` (required to run/debug images).
   - Networking/tools: `nc`, `socat` for serial multiplexing.
-  - `compile_commands.json` is present to support language servers / code navigation.
 
 - How to get help / more info
   - Consult `README.md` and follow links to other relevant '.md' files (primarily in `docs/`)
 
 - How to ask the human for help (when uncertain)
   - If build fails: paste `make` output and the failing compile/link command from the top-level `make` run.
-  - For runtime issues: provide the `qemu` command line (visible in `Makefile`), the serial log (port 4444), and the exact image under `output/`.
+  - For runtime issues: provide the testing command run and the serial log output (from QEMU or real hardware).
 
 If anything here is incomplete or more documentation is needed (e.g., step-by-step to add a new module), tell the human which area to expand and they will (eventually) update this file.

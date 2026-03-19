@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
 #include <errno.h>
 #include <signal.h>
@@ -10,9 +11,9 @@
 #include <unistd.h>
 
 #define MAX_CHANNELS 256
-#define MAX_MESSAGE_SIZE 252
-#define HEADER_SIZE 4
-#define LENGTH_MULT 8
+#define MAX_MESSAGE_SIZE 246
+#define HEADER_SIZE 6
+#define LENGTH_MULT 12
 
 _Static_assert(
 	(HEADER_SIZE + MAX_MESSAGE_SIZE) % LENGTH_MULT == 0,
@@ -31,6 +32,7 @@ typedef struct
 static channel_info_t channels[MAX_CHANNELS];
 static int num_channels = 0;
 static volatile int should_exit = 0;
+static bool print_debug = false;
 
 void signal_handler(int sig)
 {
@@ -157,6 +159,16 @@ int find_channel(int16_t channel)
 	return -1;
 }
 
+static uint16_t calculate_checksum(const char *data, size_t length)
+{
+	uint16_t checksum = 0;
+	for (size_t i = 0; i < length; i++)
+	{
+		checksum += (uint8_t)data[i];
+	}
+	return checksum;
+}
+
 int handle_stdin_packet()
 {
 	static char buffer[HEADER_SIZE + MAX_MESSAGE_SIZE];
@@ -177,6 +189,7 @@ int handle_stdin_packet()
 
 	int16_t channel = *(int16_t *)buffer;
 	uint16_t length = *(uint16_t *)(buffer + 2);
+	uint16_t checksum = *(uint16_t *)(buffer + 4);
 
 	uint16_t remaining = length + HEADER_SIZE + LENGTH_MULT - 1;
 	remaining = remaining / LENGTH_MULT * LENGTH_MULT; // Round up to multiple of LENGTH_MULT
@@ -209,7 +222,8 @@ int handle_stdin_packet()
 		return 0;
 	}
 
-	fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
+	if (print_debug)
+		fprintf(stderr, "Forwarding packet to channel %d, length %d\n", channel, length);
 	// Forward packet data to subprocess
 	while (remaining > 0)
 	{
@@ -221,6 +235,18 @@ int handle_stdin_packet()
 		}
 		count += bytes_read;
 		remaining -= bytes_read;
+	}
+	// Verify checksum
+	uint16_t calculated_checksum = calculate_checksum(&buffer[HEADER_SIZE], length);
+	if (calculated_checksum != checksum)
+	{
+		fprintf(
+			stderr,
+			"Checksum mismatch for channel %d: calculated 0x%04x, expected 0x%04x\n",
+			channel,
+			calculated_checksum,
+			checksum
+		);
 	}
 	if (write(channels[idx].stdin_fd, &buffer[HEADER_SIZE], length) != length)
 	{
@@ -244,11 +270,14 @@ int handle_subprocess_output(int idx)
 		return -1;
 	}
 
+	uint16_t checksum = calculate_checksum(&buffer[HEADER_SIZE], bytes_read);
 	// Create packet header
 	*(int16_t *)buffer = channels[idx].channel;
 	*(uint16_t *)(buffer + 2) = bytes_read;
+	*(uint16_t *)(buffer + 4) = checksum;
 
-	fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
+	if (print_debug)
+		fprintf(stderr, "Forwarding packet from channel %d, length %d\n", channels[idx].channel, bytes_read);
 	// Round up bytes_read so (bytes_read + HEADER_SIZE) is multiple of LENGTH_MULT
 	unsigned to_write = bytes_read + HEADER_SIZE + LENGTH_MULT - 1;
 	to_write = to_write / LENGTH_MULT * LENGTH_MULT;

@@ -70,6 +70,7 @@ int main(void)
 			fprintf(stdout, "Failed to open embedded payload %s\n", e->path);
 			continue;
 		}
+		fprintf(stdout, "Loading file %s of size %lu\n", e->path, e->size);
 		loader_read_file(linkset, f, e->path);
 	}
 	if (loader_finish_link(linkset) != LOADER_ERROR_NONE)
