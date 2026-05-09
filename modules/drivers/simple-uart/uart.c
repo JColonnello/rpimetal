@@ -74,7 +74,7 @@ static void map_pins()
 
 void uart_plain_mode()
 {
-	int16_t buf[6] = {INT16_MIN, 0};
+	int16_t buf[12] = {INT16_MIN, 0};
 	uart_send_buffer((char *)buf, sizeof(buf));
 }
 
@@ -93,9 +93,6 @@ constructor static void uart_init()
 			asm volatile("nop");
 		*UART0_CR = 0; // Turn off UART0
 	}
-	if (uart_mode == UART_MODE_PLAIN)
-		uart_plain_mode();
-
 	map_pins();
 	/* initialize UART */
 	*UART0_ICR = 0x7FF; // clear interrupts
@@ -106,6 +103,9 @@ constructor static void uart_init()
 	irq_register(handle_uart0, NULL, GPU_INTERRUPT2, 57);
 	*UART0_CR = CR_EN_MASK | CR_TXE_MASK | CR_RXE_MASK;
 	*UART0_IMSC = INT_RX;
+
+	if (uart_mode == UART_MODE_PLAIN)
+		uart_plain_mode();
 }
 
 static destructor void uart_destructor()
