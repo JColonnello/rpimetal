@@ -75,7 +75,7 @@ mux-tcp: multiplex
 toolchain: toolchain/Dockerfile
 	docker build -t rpimetal-toolchain toolchain/
 
-undef: $(BUILD_DIR)/kernel.ko
+undef: $(BUILD_DIR)/$(KERNEL).ko
 	@$(ARMGNU)-readelf -s $< | grep UND || true
 
 sync:
