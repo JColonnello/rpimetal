@@ -11,16 +11,6 @@
 
 static volatile bool toggle_pending = false;
 
-// Adhoc definition of memcpy
-void *memcpy(void *dest, const void *src, size_t n)
-{
-	char *place = (char *)dest;
-	const char *handler = (const char *)src;
-	for (size_t i = 0; i < n; i++)
-		place[i] = handler[i];
-	return dest;
-}
-
 static void on_tick(unsigned id, void *data)
 {
 	toggle_pending = true;

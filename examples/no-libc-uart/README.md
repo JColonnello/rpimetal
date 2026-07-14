@@ -39,7 +39,6 @@ Let's examine the code section by section:
 #include <drivers/simple-uart.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/printf.h>
 ```
 
@@ -56,18 +55,6 @@ static void _putc(void *p, char c)
 
 The `printf` module needs a function to output individual characters. We define `_putc` as a wrapper around `uart_send()`. The `void *p` parameter is unused but required by the interface.
 
-```c
-void *memcpy(void *dest, const void *src, size_t n)
-{
-    char *place = (char *)dest;
-    const char *handler = (const char *)src;
-    for (size_t i = 0; i < n; i++)
-        place[i] = handler[i];
-    return dest;
-}
-```
-
-Since we're not using the full libc (`libc/libc` module), we need to provide `memcpy` ourselves. This is a simple byte-by-byte implementation. In more complex examples, we'd include `libc/libc` instead.
 
 ```c
 int kernel_start()
