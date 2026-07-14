@@ -3,10 +3,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define POWER_LED 42
+#define STATUS_LED 130
+
 #define MBOX_TAG_GET_LED 0x00030041
 #define MBOX_TAG_SET_LED 0x00038041
 
-static unsigned int led_pin;
 static volatile bool toggle_pending = false;
 
 // Adhoc definition of memcpy
@@ -24,14 +26,14 @@ static void on_tick(unsigned id, void *data)
 	toggle_pending = true;
 }
 
-static int led_init(void)
+__attribute__((unused)) static int led_get(int pin)
 {
 	mbox[0] = 8 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = MBOX_TAG_GET_LED;
 	mbox[3] = 8;
 	mbox[4] = 0;
-	mbox[5] = 0;
+	mbox[5] = pin;
 	mbox[6] = 0;
 	mbox[7] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
@@ -40,18 +42,17 @@ static int led_init(void)
 	if (!(mbox[1] & 0x80000000))
 		return -1;
 
-	led_pin = mbox[5];
 	return 0;
 }
 
-static int led_set(int on)
+static int led_set(int pin, int on)
 {
 	mbox[0] = 8 * 4;
 	mbox[1] = MBOX_REQUEST;
 	mbox[2] = MBOX_TAG_SET_LED;
 	mbox[3] = 8;
 	mbox[4] = 0;
-	mbox[5] = led_pin;
+	mbox[5] = pin;
 	mbox[6] = on;
 	mbox[7] = MBOX_TAG_LAST;
 	mbox_call(MBOX_CH_PROP);
@@ -62,8 +63,7 @@ static int led_set(int on)
 
 int kernel_start()
 {
-	if (led_init() < 0)
-		return -1;
+	led_set(STATUS_LED, 0);
 
 	int state = 0;
 	timer_register(1000000, true, on_tick, NULL);
@@ -74,7 +74,7 @@ int kernel_start()
 		{
 			toggle_pending = false;
 			state = !state;
-			led_set(state);
+			led_set(STATUS_LED, state);
 		}
 		asm("wfi");
 	}
