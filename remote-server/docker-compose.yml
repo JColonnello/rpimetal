@@ -31,7 +31,7 @@ services:
       - ./dhcpd.conf:/etc/dhcp/dhcpd.conf
   serial:
     image: alpine/socat
-    command: TCP-LISTEN:4000,reuseaddr,fork /dev/ttyUSB0,b115200,raw,onlcr=0,echo=0,echoctl=0
+    command: TCP-LISTEN:4000,reuseaddr,fork /dev/ttyUSB0,b921600,raw,onlcr=0,echo=0,echoctl=0
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
     ports:
