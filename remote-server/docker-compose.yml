@@ -1,8 +1,7 @@
 services:
   tftpd:
-    image: docker.io/kalaksi/tftpd
-    # You can also use GitLab as an alternative to Docker Hub:
-    # image: registry.gitlab.com/kalaksi-containers/tftpd
+    build:
+      context: tftpd
     environment:
       # An interface and a port to listen to. "0.0.0.0" means all interfaces
       TFTPD_BIND_ADDRESS: "0.0.0.0:1069"
@@ -17,7 +16,7 @@ services:
     ports:
       - 69:1069/udp
     volumes:
-      - tftpd-root:/tftpboot
+      - tftpd-root:/tftpboot/boot
   rsync:
     image: stefda/rsync
     ports:
@@ -36,6 +35,7 @@ services:
       - /dev/ttyUSB0:/dev/ttyUSB0
     ports:
       - 4000:4000
+    profiles: [uart]
 
 volumes:
   tftpd-root:
