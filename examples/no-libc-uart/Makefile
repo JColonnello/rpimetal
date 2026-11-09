@@ -1,1 +1,1 @@
-KERNEL_MODULES := arm/irq drivers/mbox drivers/simple-uart sys/printf
+KERNEL_MODULES := arm/irq drivers/simple-uart sys/printf

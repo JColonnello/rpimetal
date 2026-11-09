@@ -33,17 +33,23 @@ int kernel_start(void)
 
 	closedir(dir);
 
-	FILE *file;
-	file = fopen("sd:counter", "r+");
-	if (!file)
-	{
-		fprintf(stderr, "Error opening counter file\n");
-		return -1;
-	}
 	// Read counter (2 bytes) in file, print, increment, and write back
 	uint16_t counter = 0;
-	int br, bw;
-	br = fread(&counter, sizeof(counter), 1, file);
+	int br = 1, bw;
+	FILE *file;
+	file = fopen("sd:counter", "r+");
+	if (file)
+		br = fread(&counter, sizeof(counter), 1, file);
+	else
+	{
+		// First run: create the file, counter starts at 0
+		file = fopen("sd:counter", "w+");
+		if (!file)
+		{
+			fprintf(stderr, "Error creating counter file\n");
+			return -1;
+		}
+	}
 	printf("Counter: %u\n", counter);
 	counter++;
 	rewind(file);

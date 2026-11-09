@@ -112,8 +112,10 @@ output/config.txt: remote-server/config.txt
 # Disk image
 
 $(SD):
-	truncate -s 64M $@
-	mkfs.vfat -F 32 $@
+	rm -f $@.tmp
+	truncate -s 64M $@.tmp
+	mkfs.vfat -F 32 $@.tmp
+	mv $@.tmp $@
 
 # Object files
 

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # upload-tool: send files listed in a file-list over mux channel -1 using a simple text protocol.
 # Protocol (text-based):
 #  - Bootloader sends: READY\n

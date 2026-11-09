@@ -295,7 +295,7 @@ weak unsigned uart_target_baud = 921600; // Desired baud rate
 weak enum uart_mode uart_mode = UART_MODE_PLAIN;
 
 /**
- * Set baud rate and characteristics (115200 8N1) and map to GPIO
+ * Set baud rate and characteristics (uart_target_baud, 8N1) and map to GPIO
  */
 constructor static void uart_init()
 {
