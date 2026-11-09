@@ -51,7 +51,7 @@ An out-of-the-box development environment for baremetal programming on a physica
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/rpimetal.git
+   git clone https://github.com/jcolonnello/rpimetal.git
    cd rpimetal
    ```
 
@@ -151,7 +151,7 @@ BOOTLOADER = bootloaders/linked
 | `bootloaders/elf-symbol` | Loads kernel as ELF, resolves symbols at runtime | Programs using modules, dynamic features |
 | `bootloaders/elf-uart` | (WIP) Loads ELF via UART | Development without SD card reflashing |
 
-See [Bootloaders](2.-Bootloaders.md) for detailed documentation on each.
+See [Bootloaders](bootloaders/README.md) for detailed documentation on each.
 
 ## Terminal Modes
 
@@ -200,7 +200,7 @@ The Raspberry Pi boot sequence involves multiple stages:
 
 ## Documentation
 
-* [Build System](docs/build-system.md) — How the Makefile works, adding modules
+* [Build System](docs/build-system.md) — How the Makefile works
 * [Multiplexing Protocol](docs/multiplexing.md) — Serial multiplexing for multi-channel I/O
 * [Modules](modules/README.md) — Available kernel modules and how to create new ones
 * [Hardware deployment](docs/hardware-deploy.md) — Instructions for running on real hardware

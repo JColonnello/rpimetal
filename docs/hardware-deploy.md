@@ -57,7 +57,7 @@ The docker compose definition found in `remote-server/` contains various service
 	docker compose up -d
 	```
 
-	> If using the ethernet port on the computer, configure its network manager to stop managing the interface and assign an static IP (`192.168.97.2` by default). The included script [dhcp.sh](remote-server/dhcp.sh) shows an example for NetworkManager
+	> If using the ethernet port on the computer, configure its network manager to stop managing the interface and assign an static IP (`192.168.97.2` by default). The included script [dhcp.sh](../remote-server/dhcp.sh) shows an example for NetworkManager
 
 1. In RPiMetal, configure the `sync` task as the default built task and run it (Ctrl+Shift+B), or run `make all sync` in a new terminal. This will build the project and send all the firmware files and the compiled program to the remote server
 

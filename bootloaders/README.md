@@ -66,7 +66,3 @@ The kernel entry point signature:
 ```c
 void _start(struct boot_info *info, union boot_userdata userdata);
 ```
-
-## Creating a Custom Bootloader
-
-See [Build system](../docs/build-system.md#adding-a-new-bootloader) for instructions on creating your own bootloader.
