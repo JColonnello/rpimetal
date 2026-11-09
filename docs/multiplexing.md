@@ -42,46 +42,53 @@ graph TB
 
 ### Packet Format
 
-Each packet consists of a 4-byte header followed by the message payload:
+Each packet consists of a 6-byte header followed by the message payload. All header fields are little-endian:
 
 | Field | Size | Type | Description |
 |-------|------|------|-------------|
 | Channel | 2 bytes | `int16_t` (signed) | Channel identifier. Negative values reserved for control. |
-| Length | 2 bytes | `uint16_t` (unsigned) | Payload length in bytes (0-252) |
-| Payload | 0-252 bytes | raw data | The message content |
-| Padding | 0-7 bytes | zeros | Padding to align total packet size to 8-byte boundary |
+| Length | 2 bytes | `uint16_t` (unsigned) | Payload length in bytes (0-246) |
+| Checksum | 2 bytes | `uint16_t` (unsigned) | Checksum of the message payload |
+| Payload | 0-246 bytes | raw data | The message content |
+| Padding | 0-11 bytes | unspecified | Padding to align total packet size to 12-byte boundary. Receivers ignore its contents. |
 
 Example for a 13 byte payload:
 ```mermaid
 packet
 0-1: "Channel"
 2-3: "Length"
-4-16: "Payload"
-17-23: "Padding"
+4-5: "Checksum"
+6-18: "Payload"
+19-23: "Padding"
 ```
+
+### Checksum
+
+The checksum is the sum of all payload bytes, each taken as an unsigned 8-bit value, truncated to 16 bits. The header and padding are not included.
+
+```c
+uint16_t checksum = 0;
+for (size_t i = 0; i < length; i++)
+    checksum += (uint8_t)payload[i];
+```
+
+On a mismatch, both the kernel and the host multiplexer print a warning to stderr, but the packet is still delivered.
 
 ### Alignment Rule
 
-The total packet size (header + payload + padding) must be a multiple of `LENGTH_MULT` (8 bytes):
+The total packet size (header + payload + padding) must be a multiple of `LENGTH_MULT` (12 bytes):
 
 ```
 total_size = HEADER_SIZE + length + padding
 total_size % LENGTH_MULT == 0
 ```
 
-Why 8 bytes? The Raspberry Pi UART driver and the kernel-side UART
-interrupt configuration are tuned to the PL011 FIFO behavior. The
-UART receive/transmit IRQs are commonly configured to fire when the
-FIFO is half-full (8 bytes). To avoid partial FIFO fragments and
-spurious interrupt-driven fragmentation, packets are aligned to an
-8-byte boundary. The mux layer and the host-side multiplexer server
-automatically add zero-padding when needed, so application code may
-send arbitrary-length payloads and the mux will handle alignment.
+Both the kernel mux layer and the host multiplexer add the padding automatically, so application code can send payloads of any length.
 
 Examples:
-- Payload of 4 bytes: `4 + 4 = 8` → no padding needed
-- Payload of 10 bytes: `4 + 10 = 14` → 2 bytes padding → 16 bytes total
-- Payload of 252 bytes: `4 + 252 = 256` → no padding needed
+- Payload of 4 bytes: `6 + 4 = 10` → 2 bytes padding → 12 bytes total
+- Payload of 10 bytes: `6 + 10 = 16` → 8 bytes padding → 24 bytes total
+- Payload of 246 bytes: `6 + 246 = 252` → no padding needed
 
 ### Channel Conventions
 
@@ -91,6 +98,8 @@ Examples:
 | 1 | Standard error (stderr) |
 | 2+ | User-defined channels |
 | Negative | Reserved for control/metadata |
+
+`INT16_MIN` (-32768) is used to exit muxed mode: `uart_plain_mode()` sends it with length 0, and the host multiplexer exits when it receives it.
 
 ## Kernel-Side API
 
@@ -167,15 +176,17 @@ The `multiplex` tool (`toolchain/multiplex.c`) runs on the host and demultiplexe
 
 ### Building
 
-The tool is built automatically:
+The tool is built automatically by `make mux-tcp`, or explicitly with:
 ```bash
 make multiplex
 ```
 
 Or manually:
 ```bash
-gcc -g -o output/multiplex toolchain/multiplex.c
+gcc -g -o multiplex toolchain/multiplex.c
 ```
+
+Either way the binary ends up at `./multiplex` in the repo root.
 
 ### Configuration File
 
@@ -192,8 +203,8 @@ Example `config-mult.txt`:
 ```
 
 This maps:
-- Channel 0 → netcat listening on port 4440
-- Channel 1 → netcat listening on port 4441
+- Channel 0 → netcat connecting to port 4440
+- Channel 1 → netcat connecting to port 4441
 
 ### Running
 
@@ -205,8 +216,10 @@ make mux-tcp
 
 This runs:
 ```bash
-socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'output/multiplex config-mult.txt',nofork
+socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'(./multiplex config-mult.txt; nc -N localhost 4440; echo Terminated >&2)',nofork
 ```
+
+When `multiplex` exits (for example after the kernel switches back to plain mode), the serial stream falls back to a plain `nc` on port 4440, so output keeps reaching the stdout terminal.
 
 Then connect to individual channels:
 ```bash
@@ -221,11 +234,11 @@ nc localhost 4441
 
 1. QEMU connects its serial port to TCP port 4444
 2. `socat` bridges port 4444 to the `multiplex` process
-3. `multiplex` reads packets from stdin (the serial stream)
-4. For each packet, it:
-   - Parses the channel and length from the header
-   - Finds (or spawns) the command for that channel
-   - Forwards the payload to that command's stdin
+3. `multiplex` spawns the command for every channel in the config file at startup
+4. It reads packets from stdin (the serial stream), and for each one:
+   - Parses the channel, length and checksum from the header
+   - Looks up the command for that channel (unknown channels are skipped with a warning)
+   - Verifies the checksum and forwards the payload to that command's stdin
 5. Output from commands is read, packaged into mux packets, and sent to stdout
 
 ## VS Code Terminal Integration
@@ -276,7 +289,7 @@ int kernel_start() {
     init_printf(0, putc_mux);
     
     printf("This goes to stdout (channel 0)\n");
-    mux_send(1, "This goes to stderr (channel 1)\n", 33);
+    mux_send(1, "This goes to stderr (channel 1)\n", 32);
     
     return 0;
 }
