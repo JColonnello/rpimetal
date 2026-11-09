@@ -75,12 +75,12 @@ If you prefer to build the Docker image locally instead of pulling from Docker H
 make toolchain
 ```
 
-Then modify `.devcontainer/devcontainer.json` to use the local image:
+This builds and tags the image as `rpimetal-toolchain`. Then modify `.devcontainer/devcontainer.json` to use the local image:
 ```json
-"build": {
-    "dockerfile": "../toolchain/Dockerfile"
-}
+"image": "rpimetal-toolchain",
 ```
+
+Alternatively, remove the `"image"` line and uncomment the `"build"` block in `.devcontainer/devcontainer.json`, so the Dev Containers extension builds the image from `toolchain/Dockerfile` itself.
 
 ## Getting Started
 
@@ -88,26 +88,33 @@ Once the dev container is running, test that everything works:
 
 ### 1. Build and Run
 
-The project should build automatically when the container starts. You can also build manually:
+Build the project:
 
 ```bash
 make
 ```
+
+Serial output goes to a TCP connection on `localhost:4444` that QEMU opens as a client, so a listener must already be running before you start QEMU (see [View Output](#2-view-output)).
 
 To run in QEMU with VNC display:
 ```bash
 make run-vnc
 ```
 
-Or to use a graphical window for display:
+Or to run without a display (serial only):
 ```bash
 make run
 ```
 
+To run with the serial port attached to the current terminal (and VNC display):
+```bash
+make run-inline
+```
+
 ### 2. View Output
 
-* **Serial output**: Open a terminal and run `nc localhost 4444` (or use the preconfigured terminal tabs)
-* **VNC display**: Connect to `localhost:5901` with a VNC client, or use the VS Code Simple Browser
+* **Serial output**: Before `make run`/`make run-vnc`, start a listener on port 4444: run `make uart0` (which runs `nc -lkvp 4444`) in another terminal, or use the preconfigured terminal tabs (see [Terminal Modes](#terminal-modes)). Not needed for `make run-inline`.
+* **VNC display** (`make run-vnc`, `make debug-vnc`, `make run-inline`): Connect to `localhost:5901` with a VNC client, or use the VS Code Simple Browser
 
 ### 3. Debug
 
@@ -140,8 +147,11 @@ KERNEL = examples/no-libc-uart
 BOOTLOADER = bootloaders/linked
 
 # Optional: additional modules to include
+# (only used by the ELF-loading bootloaders, elf-symbol and elf-uart)
 # EXTRA_MODULES = testing/test
 ```
+
+`EXTRA_MODULES` is only consumed by `bootloaders/elf-symbol` and `bootloaders/elf-uart`, which load those modules after the kernel. `bootloaders/linked` ignores it.
 
 ### Available Bootloaders
 
@@ -213,12 +223,17 @@ The Raspberry Pi boot sequence involves multiple stages:
 |---------|-------------|
 | `make` | Build the kernel image |
 | `make clean` | Remove build artifacts |
-| `make run` | Run in QEMU (serial only) |
+| `make rebuild` | Clean and build |
+| `make run` | Run in QEMU (serial on TCP port 4444, no display) |
 | `make run-vnc` | Run in QEMU with VNC display |
+| `make run-inline` | Run in QEMU with serial on the current terminal (and VNC display) |
+| `make uart0` | Listen on port 4444 for plain serial output (start before `make run`) |
 | `make debug` | Run in QEMU, wait for debugger |
 | `make debug-vnc` | Run in QEMU with VNC, wait for debugger |
 | `make mux-tcp` | Start the serial multiplexer |
-| `make undef` | Show undefined symbols in kernel |
+| `make undef` | Show undefined symbols in the program `.ko` |
+| `make sync` | Rsync `output/` to the remote server (`RSYNC_SERVER`) |
+| `./inline.sh [timeout]` | Run in QEMU, print muxed serial output in the current terminal and stop after `timeout` seconds (default 5) |
 
 ## License
 

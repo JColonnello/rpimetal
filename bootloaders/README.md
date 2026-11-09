@@ -8,7 +8,7 @@ This directory contains different bootloaders for RPiMetal. Each bootloader init
 |------------|-------------|----------|
 | [linked](linked/README.md) | Static linking | Simple programs, no dynamic loading |
 | [elf-symbol](elf-symbol/README.md) | Dynamic ELF loading | Programs using modules, dynamic features, TLS |
-| [elf-uart](elf-uart/README.md) | Load ELF via UART | (WIP) Development without SD card reflashing |
+| [elf-uart](elf-uart/README.md) | Load ELF via UART | (WIP: works, but too slow for normal use) Development without SD card reflashing |
 
 ## Choosing a Bootloader
 
@@ -25,7 +25,7 @@ This directory contains different bootloaders for RPiMetal. Each bootloader init
 - You're developing a more complex kernel
 
 ### Use `elf-uart` when:
-- (Future) You want to load programs over serial without reflashing SD
+- You want to load programs over serial without reflashing SD (WIP: it works, but the upload is too slow for normal use)
 
 ## Configuration
 
@@ -35,6 +35,8 @@ Set the bootloader in `config.mk`:
 BOOTLOADER = bootloaders/linked
 # or
 BOOTLOADER = bootloaders/elf-symbol
+# or (WIP)
+BOOTLOADER = bootloaders/elf-uart
 ```
 
 ## Common Boot Sequence

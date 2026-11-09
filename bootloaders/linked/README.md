@@ -78,15 +78,25 @@ Key symbols defined:
 
 Build rules that:
 
-1. **Define boot modules**: MMU module linked with bootloader
-2. **Link the final ELF**: Combines bootloader, kernel, and modules
-3. **Resolve unresolved symbols**: Uses `--unresolved-symbols=ignore-all` to allow weak/optional symbols
+1. **Define boot modules**: MMU module linked with bootloader, skipping any already listed in `KERNEL_MODULES`
+2. **Build `kernel.ko`**: Partially links `extra/elf-init.ko`, the `KERNEL_MODULES` and `$(KERNEL).ko` into one relocatable object
+3. **Link the final ELF**: Combines bootloader, `kernel.ko` and boot modules
+4. **Resolve unresolved symbols**: Uses `--unresolved-symbols=ignore-all` to allow weak/optional symbols
 
 ```makefile
 BOOT_MODULES := arm/mmu-basic
+BOOT_MODULES := $(filter-out $(KERNEL_MODULES), $(BOOT_MODULES))
 
-$(OUTPUT_DIR).elf: $(DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/kernel.ko $(BOOT_MODULES)
-    $(CC) $(CFLAGS) -nostdlib -Wl,--unresolved-symbols=ignore-all -T $^ -o $@
+$(BUILD_DIR)/kernel8.elf : $(OUTPUT_DIR).elf
+	ln -f $< $@
+
+$(OUTPUT_DIR).elf: $(DIR)/linker.ld $(OBJ_FILES) $(BUILD_DIR)/kernel.ko $(BOOT_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -nostdlib -Wl,--unresolved-symbols=ignore-all -T $^ -o $@
+
+$(BUILD_DIR)/kernel.ko: $(BUILD_DIR)/extra/elf-init.ko $(KERNEL_MODULES:%=$(BUILD_DIR)/$(MODULES_DIR)/%.ko) $(BUILD_DIR)/$(KERNEL).ko
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -nostdlib -r $^ -o $@
 ```
 
 ## Memory Layout

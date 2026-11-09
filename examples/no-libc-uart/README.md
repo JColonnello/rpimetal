@@ -17,18 +17,19 @@ When you run this example, you should see in the serial terminal:
 Hello, RPi Metal!
 ```
 
+After that, every character you type is echoed back as its hex value (typing `a` prints `61`).
+
 ## Files
 
 ### Makefile
 
 ```makefile
-KERNEL_MODULES := arm/irq drivers/mbox drivers/simple-uart sys/printf
+KERNEL_MODULES := arm/irq drivers/simple-uart sys/printf
 ```
 
 This example uses minimal modules:
-- `arm/irq`: Interrupt handling (required by most drivers)
-- `drivers/mbox`: Mailbox interface (required for UART clock setup)
-- `drivers/simple-uart`: Basic UART driver for serial output
+- `arm/irq`: Interrupt handling (simple-uart registers its RX interrupt here)
+- `drivers/simple-uart`: Basic UART driver for serial input and output
 - `sys/printf`: Lightweight printf implementation
 
 ### kernel.c
@@ -43,7 +44,7 @@ Let's examine the code section by section:
 ```
 
 Include the necessary headers:
-- `drivers/simple-uart.h`: Provides `uart_send()` function
+- `drivers/simple-uart.h`: Provides `uart_send()` and `uart_set_rx_callback()`
 - `sys/printf.h`: Provides `init_printf()` and `printf()`
 
 ```c
@@ -57,10 +58,24 @@ The `printf` module needs a function to output individual characters. We define 
 
 
 ```c
+static void uart_receive_callback(char c)
+{
+    // Echo received character
+    printf("%x", c);
+}
+```
+
+Called from the UART RX interrupt for each received character. It prints the character's value in hex.
+
+```c
 int kernel_start()
 {
     init_printf(0, _putc);
     printf("Hello, RPi Metal!\n");
+    uart_set_rx_callback(uart_receive_callback);
+    for (;;)
+        asm("wfi");
+
     return 0;
 }
 ```
@@ -68,7 +83,8 @@ int kernel_start()
 The main entry point:
 1. `init_printf(0, _putc)`: Initialize printf with our output function
 2. `printf(...)`: Print our message
-3. `return 0`: Exit (the bootloader halts the CPU)
+3. `uart_set_rx_callback(...)`: Register the echo callback
+4. `for (;;) asm("wfi")`: Sleep until the next interrupt, forever. `kernel_start` never returns, so the `return 0` is unreachable.
 
 ## Running the Example
 
@@ -83,17 +99,17 @@ The main entry point:
    make
    ```
 
-3. Run:
+3. Start a serial listener (QEMU connects to it as a client, so it must be running first):
+   ```bash
+   make uart0     # nc -lkvp 4444
+   ```
+
+4. In another terminal, run:
    ```bash
    make run
    ```
 
-4. In another terminal, connect to the serial output:
-   ```bash
-   nc localhost 4444
-   ```
-
-You should see "Hello, RPi Metal!" printed.
+You should see "Hello, RPi Metal!" printed in the listener terminal. Type there to see the hex echo.
 
 ## Exercises
 
@@ -107,7 +123,7 @@ You should see "Hello, RPi Metal!" printed.
    printf("The answer is %d\n", x);
    ```
 
-4. **Loop forever**: Instead of returning, add an infinite loop that prints periodically:
+4. **Print periodically**: Replace the `wfi` loop with one that prints periodically:
    ```c
    while (1) {
        printf("Still running...\n");
@@ -121,7 +137,7 @@ You should see "Hello, RPi Metal!" printed.
 
 ### No output appears
 
-- Make sure `nc localhost 4444` is running before or shortly after `make run`
+- Make sure the listener (`make uart0` or `nc -lkvp 4444`) is running before `make run`
 - Check that QEMU started successfully
 - Verify the bootloader is `bootloaders/linked`
 

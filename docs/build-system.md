@@ -26,11 +26,14 @@ rpimetal/
 +-- config.mk             # User configuration (create from config.example.mk)
 +-- config.example.mk     # Example configuration
 +-- build/                # Build artifacts (generated)
-|   +-- kernel.ko         # Compiled kernel
 |   +-- kernel8.elf       # Linked ELF executable
+|   +-- kernel.ko         # Program + modules combined (bootloaders/linked only)
 |   +-- modules/          # Compiled modules
 |   +-- bootloaders/      # Compiled bootloaders
-|   +-- examples/         # Compiled examples
+|   +-- examples/         # Compiled programs, e.g. examples/display.ko
+|   +-- extra/            # elf-init.ko (from extra/elf-init)
+|   +-- payloads/         # Embedded payload objects (bootloaders/elf-symbol only)
+|   +-- file-list.txt     # Files to send over UART (bootloaders/elf-uart only)
 +-- output/               # Final outputs
 |   +-- kernel8.img       # Binary image for Raspberry Pi
 +-- modules/              # Reusable kernel modules
@@ -58,14 +61,17 @@ KERNEL = examples/no-libc-uart
 # The bootloader to use (path to bootloader folder)
 BOOTLOADER = bootloaders/linked
 
-# Additional modules to include (space-separated list)
-EXTRA_MODULES = testing/test
+# Additional modules to include (space-separated list, commented out by default).
+# Only used by the elf-symbol and elf-uart bootloaders; ignored by linked.
+# EXTRA_MODULES = testing/test
 
 # Remote server for deployment (optional)
 RSYNC_SERVER = 192.168.0.199
 ```
 
 If `config.mk` doesn't exist, the build system falls back to `config.example.mk`.
+
+The program is compiled into `build/$(KERNEL).ko` (e.g. `build/examples/no-libc-uart.ko`). `EXTRA_MODULES` can also be set in the program's own Makefile (see `examples/linking/Makefile`).
 
 ### Using predefined Make variables
 
@@ -74,7 +80,7 @@ predefined variables and helper recipes exposed by the top-level
 `Makefile`. These make it easy to refer to module source files and
 output paths without hardcoding directory names.
 
-- `DIR`: the current module/example directory (basename)
+- `DIR`: the relative path of the current module/program directory (e.g. `modules/drivers/uart`, `examples/display`)
 - `BUILD_DIR`: the top-level build output directory (`build`)
 - `OUTPUT_DIR`: the per-module output directory (`$(BUILD_DIR)/$(DIR)`)
 - `OUTPUT_KO`: the resulting relocatable object for the module (`$(OUTPUT_DIR).ko`)
@@ -109,9 +115,11 @@ module-specific flags or extra link libraries when necessary.
 | `make rebuild` | Clean and build |
 | `make run` | Build and run in QEMU (serial on TCP) |
 | `make run-vnc` | Build and run in QEMU with VNC display |
+| `make run-inline` | Build and run in QEMU with serial on stdio (and VNC display) |
+| `make uart0` | Listen on TCP port 4444 for plain serial output (`nc -lkvp 4444`) |
 | `make debug` | Build and run in QEMU, waiting for debugger |
 | `make debug-vnc` | Same as above, with VNC display |
-| `make undef` | Show undefined symbols in kernel.ko |
+| `make undef` | Show undefined symbols in `$(BUILD_DIR)/$(KERNEL).ko` (the program `.ko`) |
 | `make mux-tcp` | Start the serial multiplexer |
 | `make sync` | Rsync output/ to remote server |
 | `make toolchain` | Build the Docker toolchain image locally |
@@ -142,15 +150,18 @@ Modules are defined in `modules/Makefile`:
 
 ```makefile
 # Standard modules (compiled individually)
-STD_MODULES = drivers/uart drivers/mbox loader arm/irq ...
+STD_MODULES = testing/test testing/test2 drivers/uart drivers/mbox loader arm/irq arm/mmu-basic drivers/display drivers/timer \
+sys/mux drivers/sd drivers/sd2 dummy sys/printf drivers/simple-uart fs/fat complex-loader
 
 # Multi-file modules (may have dependencies)
 MULTI_MODULES = testing/test3 libc
 ```
 
+These lists only register module Makefiles: the top-level Makefile does `-include` on `modules/<name>/Makefile` for each `STD_MODULES` entry and `include` for each `MULTI_MODULES` entry. Any module named in `KERNEL_MODULES`, `BOOT_MODULES` or `EXTRA_MODULES` is built by the generic `$(BUILD_DIR)/%.ko` rule, except multi-modules, which must provide their own rules.
+
 Each module folder contains:
 - Source files (`.c`, `.S`)
-- A `Makefile` that defines module-specific settings
+- Optionally, a `Makefile` with module-specific settings (e.g. `modules/complex-loader/Makefile` adds `LDLIBS`). Most modules don't have one.
 - The build produces a `.ko` file in `build/modules/`
 
 ### 3. Building a Kernel
@@ -161,8 +172,13 @@ When you run `make`, the following happens:
 2. **Include module Makefiles**: Process `modules/Makefile` and each module's Makefile
 3. **Compile sources**: `.c` → `.c.o`, `.S` → `.S.o`
 4. **Link modules**: Object files → `.ko` relocatable objects
-5. **Link kernel**: Bootloader + kernel + modules → `kernel8.elf`
+5. **Link `kernel8.elf`**: depends on the bootloader (see below)
 6. **Create image**: `objcopy` → `kernel8.img`
+
+How `kernel8.elf` is produced depends on `BOOTLOADER`:
+- `bootloaders/linked`: `elf-init.ko`, the `KERNEL_MODULES` and the program `.ko` are combined into `build/kernel.ko`, which is linked with the bootloader sources and `BOOT_MODULES` into a single executable.
+- `bootloaders/elf-symbol`: the bootloader and its `BOOT_MODULES` are linked into `kernel8.elf`, with `elf-init.ko`, `KERNEL_MODULES` and the program `.ko` embedded as `build/payloads/kernel_payload.o`, and `EXTRA_MODULES` as `build/payloads/extra_payload.o`. The `complex-loader` module links them at runtime.
+- `bootloaders/elf-uart`: only the bootloader and its `BOOT_MODULES` are linked. The kernel files are sent over UART at runtime, following `build/file-list.txt` (kernel-phase files, a blank line, then `EXTRA_MODULES`).
 
 ### 4. Relocatable Objects (.ko)
 
@@ -195,13 +211,6 @@ This ensures that changing a header file triggers recompilation of all affected 
 
 ## Debugging Build Issues
 
-### View Compilation Commands
-
-To see the exact commands being run:
-```bash
-make V=1
-```
-
 ### Check Undefined Symbols
 
 To see what symbols are undefined in your kernel:
@@ -232,6 +241,10 @@ run-vnc: all
 		-drive file=$(SD),if=sd,format=raw \
 		-vnc :1,websocket=on
 ```
+
+`run-inline` uses `-serial stdio` instead of `-serial tcp:localhost:4444`, so serial I/O goes to the current terminal and no listener is needed. The other run/debug targets connect to `localhost:4444` as a client, so start a listener first (`make uart0` for plain mode, `make mux-tcp` for muxed mode).
+
+For automated or agent runs, `./inline.sh [timeout]` starts the multiplexer on port 4444, runs `make run-vnc` in the background, prints the muxed stdout/stderr channels in the current terminal and kills QEMU after `timeout` seconds (default 5).
 
 Key QEMU options:
 - `-M raspi3b`: Emulate Raspberry Pi 3B

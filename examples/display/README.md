@@ -53,29 +53,29 @@ Let's break it down:
 #include <drivers/display.h>
 ```
 
-The display driver header, which provides:
-- `lfb_init()`: Initialize framebuffer (called automatically)
-- `lfb_showpicture(data, h, w)`: Display a pixel array
+The display driver header. It only declares `lfb_showpicture(image, height, width)`, which draws an encoded image centered on screen.
+
+The framebuffer itself is set up by `lfb_init()`, a `static` constructor inside `modules/drivers/display/display.c`. It runs automatically before `kernel_start` and is not part of the public API.
 
 ```c
 #include <resources/zorzal.h>
 ```
 
-A pre-defined image header file. This contains:
-- `header_data`: Pixel data array (RGB format)
+A pre-defined image exported from GIMP as a C source header. This contains:
+- `header_data`: The pixels encoded as a printable string, 4 characters per RGB pixel (GIMP's header format, not a raw byte array)
 - `height`: Image height in pixels
 - `width`: Image width in pixels
 
-The image is stored as a C array, compiled directly into the binary.
+The string is compiled directly into the binary. The driver decodes it with its own copy of GIMP's `HEADER_PIXEL` macro.
 
 ```c
 lfb_showpicture(header_data, height, width);
 ```
 
 Display the image centered on screen. The function:
-1. Initializes the framebuffer if not already done
-2. Calculates centering offset
-3. Copies pixels to the framebuffer
+1. Calculates the centering offset
+2. Decodes each pixel with `HEADER_PIXEL`
+3. Writes it to the framebuffer in the channel order the GPU reported
 
 ## How the Display Works
 
@@ -89,25 +89,13 @@ The display driver uses the mailbox interface to:
 
 ### Drawing Pixels
 
-Once initialized, the framebuffer is just memory. Writing to it updates the screen:
+Once initialized, the framebuffer is just memory. Writing to it updates the screen. A pixel at (x, y) lives at byte offset `y * pitch + x * 4`.
 
-```c
-// Pseudocode for drawing a pixel
-uint32_t *framebuffer = lfb_get_buffer();
-int pitch = lfb_get_pitch();
-
-// Set pixel at (x, y) to color
-framebuffer[y * (pitch/4) + x] = color;
-```
+The driver keeps the framebuffer address (`lfb`) and `pitch` in `static` variables, and `include/drivers/display.h` exposes no accessors for them. To draw from your own code you need to add them to the driver first.
 
 ### Pixel Format
 
-Pixels are 32-bit ARGB:
-```
-| Alpha (8) | Red (8) | Green (8) | Blue (8) |
-```
-
-The image in `zorzal.h` is in RGB format, so the display driver may need to swap channels.
+Pixels are 32 bits. The driver asks the GPU for RGB order and stores the order it actually got in `isrgb`. `lfb_showpicture` handles both cases: for RGB it copies the decoded bytes as is, for BGR it packs them as `R << 16 | G << 8 | B`. GIMP headers are always RGB, so no conversion is needed on your side.
 
 ## Running the Example
 
@@ -131,22 +119,25 @@ To display a custom image:
 
 1. **Prepare the image**: Use an image editor to resize/crop as needed
 
-2. **Convert to C header**: Use GIMP's "Export as C source" or a tool like:
-   ```bash
-   convert image.png -depth 8 rgb:- | xxd -i > myimage.h
-   ```
+2. **Export as a C header**: In GIMP, use File > Export As and pick "C source code header" (`*.h`). Save it in `include/resources/`, e.g. `include/resources/myimage.h`. Keep it smaller than 1024x768.
 
-3. **Create a header file** in `include/resources/`:
+3. **Check the layout**: The generated file looks like `include/resources/zorzal.h`:
    ```c
-   // include/resources/myimage.h
-   #pragma once
-   
-   static const unsigned int width = 320;
-   static const unsigned int height = 240;
-   static const unsigned char header_data[] = {
-       // pixel data...
-   };
+   /*  GIMP header image file format (RGB): .../myimage.h  */
+
+   static unsigned int width = 350;
+   static unsigned int height = 234;
+
+   /*  Call this macro repeatedly.  After each use, the pixel data can be extracted  */
+
+   #define HEADER_PIXEL(data,pixel) {\
+   ...
+   }
+   static char *header_data =
+   	"-\"U0,BY1*BQ1)RQ2)BM2*RQ7*B93+B94*R-0)R!,(QQ&(AM%&!5\"#1)!!Q%!!!!!"
+   	...;
    ```
+   Do not edit it. `kernel.c` passes `header_data`, `height` and `width` straight to `lfb_showpicture`.
 
 4. **Update kernel.c**:
    ```c
@@ -157,9 +148,9 @@ To display a custom image:
 
 1. **Change the image**: Create your own image header and display it
 
-2. **Draw shapes**: Instead of showing a picture, draw directly:
+2. **Draw shapes**: Instead of showing a picture, draw directly. The driver has no API for this yet, so first add accessors for `lfb` and `pitch` (or a `lfb_putpixel()`) to `modules/drivers/display/display.c` and declare them in `include/drivers/display.h`:
    ```c
-   // Get framebuffer pointer and draw rectangles, lines, etc.
+   // Use the new accessors to draw rectangles, lines, etc.
    ```
 
 3. **Animation**: Create a simple animation loop:
@@ -183,8 +174,8 @@ To display a custom image:
 
 ### Image looks wrong
 
-- Check pixel format (RGB vs BGR)
-- Verify image dimensions match the data
+- Verify `width`/`height` match the data (re-export from GIMP rather than editing them)
+- Make sure the image fits on screen (1024x768); `lfb_showpicture` does no clipping
 
 ### Build errors
 
@@ -195,7 +186,7 @@ To display a custom image:
 
 ### Resolution
 
-The default resolution is set in the display driver. Common resolutions:
+The driver requests 1024x768 in `lfb_init()` and uses whatever width and height the GPU reports back. If the GPU doesn't return a 32-bit framebuffer, the driver prints an error and the framebuffer stays unset. Other common resolutions:
 - 640x480 (VGA)
 - 800x600 (SVGA)
 - 1024x768 (XGA)

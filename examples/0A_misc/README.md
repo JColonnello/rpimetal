@@ -25,10 +25,7 @@ Current time: 2345678 us
 Received 5 bytes: World
 ```
 
-If you exit (Ctrl+C or program termination):
-```
-Exitting kernel
-```
+`foo.c` defines a destructor that prints `Exitting kernel`, but you won't see it: `kernel_start` loops forever, and destructors only run if it returns.
 
 ## Files
 
@@ -54,15 +51,39 @@ Local helper for memory management and libc syscall adapters.
 
 ```c
 // stdlib.h
+noreturn void halt();
 void stdlib_set_mem_limits(void *start, void *end);
 
 // stdlib.c
-void stdlib_set_mem_limits(void *start, void *end) {
-    heap_start = start;
-    heap_end = end;
-    current_brk = heap_start;
+static void *mem_start, *mem_end;
+void stdlib_set_mem_limits(void *start, void *end)
+{
+    mem_start = start;
+    mem_end = end;
+}
+
+void *_sbrk(intptr_t increment)
+{
+    static void *curr_break;
+    if (curr_break < mem_start)
+        curr_break = mem_start;
+
+    if (increment == 0)
+        return curr_break;
+
+    void *desired = curr_break + increment, *last_break = curr_break;
+    if (desired > mem_end || desired < mem_start)
+    {
+        errno = ENOMEM;
+        return (void *)-1;
+    }
+
+    curr_break += increment;
+    return last_break;
 }
 ```
+
+The heap break is initialized lazily: the first `_sbrk()` call after the limits are set moves it to `mem_start`.
 
 This file provides the minimal syscall stubs and memory-limit helpers
 used by Newlib/libc (see `examples/0A_misc/stdlib.c` for the implemented
@@ -97,7 +118,7 @@ destructor static void print_exit()
 }
 ```
 
-Functions marked `destructor` are called when the program exits. This is useful for cleanup or final messages.
+Functions marked `destructor` are called when the program exits, i.e. when `kernel_start` returns. This example never returns, so this one never runs.
 
 ```c
 void _init(struct boot_info *info, union boot_userdata userdata)
@@ -198,28 +219,25 @@ The `attrib.h` header provides convenient macros.
    make
    ```
 
-3. For muxed mode (recommended):
+3. Start the terminals in this order. The multiplexer runs `nc localhost 4440` and `nc localhost 4441` as clients (see `config-mult.txt`), and QEMU connects to the multiplexer on port 4444, so each listener must exist before whatever connects to it:
    ```bash
-   # Terminal 1: Start multiplexer
+   # Terminal 1: stdout/stdin listener (channel 0)
+   nc -lkvp 4440
+
+   # Terminal 2: stderr listener (channel 1)
+   nc -lkvp 4441
+
+   # Terminal 3: Start multiplexer (listens on 4444)
    make mux-tcp
 
-   # Terminal 2: Run QEMU
-   make run
-
-   # Terminal 3: Connect to stdout
-   nc localhost 4440
-   ```
-
-4. For plain mode (simpler but limited):
-   ```bash
-   # Terminal 1: Start listener
-   nc -lkvp 4444
-
-   # Terminal 2: Run QEMU
+   # Terminal 4: Run QEMU
    make run
    ```
+   The `muxed` session in `.vscode/sessions.json` sets up the same terminals.
 
-5. Type text in the connected terminal and press Enter
+4. Type text in terminal 1 and press Enter
+
+Plain mode (`make uart0` alone) does not work for this example: `sys/mux` forces `UART_MODE_MUXED` and stdio goes through `mux_send`/`mux_recv`. To use plain mode you would have to drop `sys/mux` and rewrite the syscalls in `stdlib.c`.
 
 ## Exercises
 
@@ -262,7 +280,7 @@ The `attrib.h` header provides convenient macros.
 ### Garbage output
 
 - Baud rate mismatch (should be 921600)
-- Wrong terminal mode (plain vs muxed)
+- Wrong terminal mode (this example needs the multiplexer, not a plain listener)
 
 ### Crashes on startup
 
@@ -289,7 +307,7 @@ The separation keeps memory management reusable across examples.
 `drivers/simple-uart` provides:
 - Lightweight UART support with interrupt-driven TX/RX (simpler API)
 - Fewer dependencies and smaller footprint
-- Does not provide multiplexing integration (use `drivers/uart` for mux)
+- Does not provide multiplexing integration (use `drivers/uart` for mux). It does send the plain-mode switch frame at init, so simple-uart programs also work behind `make mux-tcp`: the multiplexer exits and output falls through to the `nc -lkvp 4440` terminal
 
 ### Memory Map
 

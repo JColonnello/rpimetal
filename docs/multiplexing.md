@@ -221,13 +221,13 @@ socat TCP-LISTEN:4444,reuseaddr,fork SYSTEM:'(./multiplex config-mult.txt; nc -N
 
 When `multiplex` exits (for example after the kernel switches back to plain mode), the serial stream falls back to a plain `nc` on port 4440, so output keeps reaching the stdout terminal.
 
-Then connect to individual channels:
+The commands in `config-mult.txt` connect out to ports 4440 and 4441, so each channel needs a listener. Start them before running QEMU, since `multiplex` spawns the commands as soon as QEMU connects:
 ```bash
 # Terminal 1 - stdout
-nc localhost 4440
+nc -lkvp 4440
 
-# Terminal 2 - stderr  
-nc localhost 4441
+# Terminal 2 - stderr
+nc -lkvp 4441
 ```
 
 ### How It Works

@@ -26,14 +26,15 @@ The docker compose definition found in `remote-server/` contains various service
 * DHCP server for initial PXE signaling
 * TFTP server to serve the firmware and application files
 * rsync server to remotely send application files from RPiMetal
-* A service that configures the USB-UART adapter and makes it available over TCP
+* A service that configures the USB-UART adapter and makes it available over TCP (port 4000). It's optional and only starts with the `uart` profile
 
 ### Procedure
 
 1. Connect the ethernet cable to the RPi. If connecting to some other network equipment, it must be configured to forward all traffic from that port to the deployment server
 
-1. Connect the UART adapter to the correct pins in the RPi header: 
-![GPIO pin numbering](https://www.raspberrypi.com/documentation/computers/images/GPIO-Pinout-Diagram-2.png?hash=df7d7847c57a1ca6d5b2617695de6d46)
+1. Connect the UART adapter to the correct pins in the RPi header:
+
+	![GPIO pin numbering](https://www.raspberrypi.com/documentation/computers/images/GPIO-Pinout-Diagram-2.png?hash=df7d7847c57a1ca6d5b2617695de6d46)
 	* Ground to adapter GND
 	* GPIO 14 to adapter RX
 	* GPIO 15 to adapter TX
@@ -45,23 +46,25 @@ The docker compose definition found in `remote-server/` contains various service
 	* bcm2710-rpi-3-b.dtb
 	* overlays/disable-bt.dtbo
 
+	Then run `make output/config.txt`, which copies [config.txt](../remote-server/config.txt) (enables the UART, 64-bit mode and the `disable-bt` overlay) to output/. It's required on the boot media, and `make all` doesn't build it
+
 1. Using the microSD adapter
 	1. Format and create a FAT32 partition on the SD card
 	1. Copy only the bootcode.bin file to the root of the partition
 	1. Insert it in the RPi
 
-1. Copy the remote-server directory to the remote server computer. Run the docker compose, modifing the values if needed
+1. Copy the remote-server directory to the remote server computer. Run the docker compose, modifing the values if needed. Use the `uart` profile to also start the serial service for the USB-UART adapter (connected to the server as `/dev/ttyUSB0`)
 
 	```bash
 	cd remote-server
-	docker compose up -d
+	docker compose --profile uart up -d
 	```
 
-	> If using the ethernet port on the computer, configure its network manager to stop managing the interface and assign an static IP (`192.168.97.2` by default). The included script [dhcp.sh](../remote-server/dhcp.sh) shows an example for NetworkManager
+	> If using the ethernet port on the computer, configure its network manager to stop managing the interface and assign an static IP (`192.168.97.2` by default). The included script [dhcp.sh](../remote-server/dhcp.sh) shows an example for NetworkManager. The interface name (`eth=` at the top) is machine-specific, edit it before running the script
 
 1. In RPiMetal, configure the `sync` task as the default built task and run it (Ctrl+Shift+B), or run `make all sync` in a new terminal. This will build the project and send all the firmware files and the compiled program to the remote server
 
-1. Connect the RPiMetal terminal to the RPi UART, by running this command in a new command terminal inside RPiMetal:
+1. Connect the RPiMetal terminal to the RPi UART (requires the `uart` profile), by running this command in a new command terminal inside RPiMetal:
 
 	`socat TCP-CONNECT:[remote server IP]:4000 TCP-CONNECT:localhost:4444`
 
@@ -90,9 +93,11 @@ The firmware and application can be copied directly to the microSD card
 		* bcm2710-rpi-3-b.dtb
 		* overlays/disable-bt.dtbo
 		* kernel8.img
-		* config.txt
+		* config.txt (run `make output/config.txt` to generate it)
 	1. Insert it in the RPi
 1. Configure and connect the UART adapter to the RPiMetal terminal
 
-	`socat TCP-CONNECT:localhost:4444 /dev/ttyUSB0,b115200,raw,onlcr=0,echo=0,echoctl=0`
+	`socat TCP-CONNECT:localhost:4444 /dev/ttyUSB0,b921600,raw,onlcr=0,echo=0,echoctl=0`
+
+	The baud rate must match the UART driver's (`uart_target_baud` in `modules/drivers/uart/uart.c`, 921600 by default)
 1. Connect the RPi to a power supply

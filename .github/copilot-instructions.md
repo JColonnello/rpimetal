@@ -18,7 +18,7 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
 
 - How the build works (short)
   - Top-level `Makefile` includes `config.mk` (user configuration), module lists and then the bootloader and program (usually an example) makefiles.
-  - `[program]/Makefile` compiles source into `$(BUILD_DIR)/[program].ko`.
+  - `[program]/Makefile` only declares `KERNEL_MODULES` (and optionally `EXTRA_MODULES`). The top-level generic `$(BUILD_DIR)/%.ko` rule compiles the program into `build/<program path>.ko` (e.g. `build/examples/display.ko`).
   - `[bootloader]/Makefile` links `kernel8.elf` using `linker.ld` and payload modules; `objcopy` turns it into `output/kernel8.img`.
   - Modules are built as relocatable objects (`.ko`) via `-r` (partial linking).
 
@@ -29,7 +29,7 @@ Purpose: give a compact, repo-specific summary so an AI code agent can be immedi
     * Have the program under test trigger a shutdown after its logic runs (see `examples/linking/stdlib.c` for an example of how to do this via the mailbox).
 
 - Project-specific conventions & patterns
-  - Modules pattern: module folders live in `modules/<name>/`. A module appears in build via entries in top-level module lists, the `examples` Makefile's `KERNEL_MODULES` variable, or the `bootloaders/` Makefile's `BOOT_MODULES` variable.
+  - Modules pattern: module folders live in `modules/<name>/`. A module is built when listed in the program Makefile's `KERNEL_MODULES`, the `bootloaders/` Makefile's `BOOT_MODULES`, or `EXTRA_MODULES` (set in `config.mk` or the program Makefile; only consumed by `elf-symbol`/`elf-uart`). The lists in `modules/Makefile` (`STD_MODULES`/`MULTI_MODULES`) only register module Makefiles for inclusion.
   - `.ko` files in `build/` are not Linux kernel modules — they are relocatable object ELF files used to compose the final image.
   - Assembly: `.S` and `.s` files are used for low-level startup or IRQ handling (see `boot.S` and `modules/arm/irq/irq.S`).
 
